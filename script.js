@@ -1,5 +1,5 @@
 const ARC = {
-  chainId: "0x4CF4B2",
+  chainId: "5042002",
   rpc: "https://rpc.testnet.arc.network",
   name: "Arc Testnet",
   explorer: "https://testnet.arcscan.app/tx/"
@@ -35,133 +35,64 @@ function shortAddress(address) {
 
 function showTransaction(hash) {
   ui.txLink.href = `${ARC.explorer}${hash}`;
-  ui.txLink.style.display = "block";
   ui.txLink.textContent = "View Transaction";
+  ui.txLink.style.display = "block";
 }
 
 function hideTransaction() {
   ui.txLink.style.display = "none";
 }
-const ARC = { ... };
-
-const ui = { ... };
-
-const state = { ... };
-
-function setStatus(...) {
-  ...
-}
-
-function shortAddress(...) {
-  ...
-}
-
-function showTransaction(...) {
-  ...
-}
-
-function hideTransaction() {
-  ...
-}
-
-/* 👇 Paste the wallet module here */
 
 async function switchToArc() {
-  ...
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ARC.chainId }]
+    });
+  } catch (error) {
+    if (error.code === 4902) {
+      await window.ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: ARC.chainId,
+          chainName: ARC.name,
+          rpcUrls: [ARC.rpc]
+        }]
+      });
+    } else {
+      throw error;
+    }
+  }
 }
 
 async function connectWallet() {
-  ...
-}
-
-ui.connect.addEventListener("click", connectWallet);
-...
-
-function hideTransaction() {
-  ui.txLink.style.display = "none";
-}
-
-// Wallet
-
-async function switchToArc() {
-  ...
-}
-
-async function connectWallet() {
-  ...
-}
-
-ui.connect.addEventListener("click", connectWallet);
-
-// 👇 Paste the AI memo module here
-
-async function generateMemo() {
-  ...
-}
-
-ui.generate.addEventListener("click", generateMemo);
-const USDC = {
-  address: "0x3600000000000000000000000000000000000000",
-  decimals: 6,
-  abi: [
-    "function transfer(address to, uint256 value) returns (bool)"
-  ]
-};
-
-async function sendPayment() {
-  if (!state.signer) {
-    setStatus("Connect your wallet first.", "error");
-    return;
-  }
-
-  const recipient = ui.recipient.value.trim();
-  const amount = ui.amount.value.trim();
-
-  if (!ethers.isAddress(recipient)) {
-    setStatus("Enter a valid recipient address.", "error");
-    return;
-  }
-
-  if (!amount || Number(amount) <= 0) {
-    setStatus("Enter a valid amount.", "error");
+  if (!window.ethereum) {
+    setStatus("Please install MetaMask.", "error");
     return;
   }
 
   try {
-    ui.send.disabled = true;
-    hideTransaction();
-    setStatus("Sending payment...", "info");
+    await window.ethereum.request({
+      method: "eth_requestAccounts"
+    });
 
-    const usdc = new ethers.Contract(
-      USDC.address,
-      USDC.abi,
-      state.signer
-    );
+    await switchToArc();
 
-    const tx = await usdc.transfer(
-      recipient,
-      ethers.parseUnits(amount, USDC.decimals)
-    );
+    state.provider = new ethers.BrowserProvider(window.ethereum);
+    state.signer = await state.provider.getSigner();
+    state.account = await state.signer.getAddress();
 
-    setStatus("Waiting for confirmation...", "info");
+    ui.wallet.textContent = shortAddress(state.account);
+    ui.connect.textContent = "Wallet Connected";
 
-    await tx.wait();
-
-    showTransaction(tx.hash);
-
-    setStatus("Payment sent successfully.", "success");
+    setStatus("Connected to Arc Testnet.", "success");
 
   } catch (error) {
     console.error(error);
-
-    setStatus(
-      error.reason || error.shortMessage || "Transaction failed.",
-      "error"
-    );
-
-  } finally {
-    ui.send.disabled = false;
+    setStatus("Failed to connect wallet.", "error");
   }
 }
 
-ui.send.addEventListener("click", sendPayment);
+ui.connect.addEventListener("click", connectWallet);
+
+hideTransaction();

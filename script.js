@@ -128,3 +128,29 @@ generateBtn.addEventListener("click", async () => {
   showStatus(error.message, "error");
 
   }
+
+
+    sendBtn.addEventListener("click", async () => {
+
+  if (!signer) {
+    showStatus("Please connect your wallet first.", "error");
+    return;
+  }
+
+  const recipient = document.getElementById("recipient").value.trim();
+  const amount = document.getElementById("amount").value.trim();
+
+  if (!ethers.isAddress(recipient)) {
+    showStatus("Enter a valid wallet address.", "error");
+    return;
+  }
+
+  if (!amount || Number(amount) <= 0) {
+    showStatus("Enter a valid amount.", "error");
+    return;
+  }
+
+  showStatus("Preparing transaction...", "info");
+
+});
+

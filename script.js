@@ -62,7 +62,7 @@ async function switchToArc() {
         nativeCurrency: {
           name: "USDC",
           symbol: "USDC",
-          decimals: 18  // Arc native token uses 18 decimals
+          decimals: 18
         },
         blockExplorerUrls: ["https://testnet.arcscan.app"]
       }]
@@ -119,7 +119,7 @@ async function generateMemo() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": "YOUR_API_KEY_HERE",       // replace with your key
+        "x-api-key": "AQ.Ab8RN6K1YqvDIEJuTzvwrshlRYo-bShktxhQZ4B1p8abTAVj_w",   
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
@@ -176,10 +176,9 @@ async function sendPayment() {
     hideTransaction();
     setStatus("Sending USDC...", "info");
 
-    // USDC is the native token on Arc — send as a native value transfer, not ERC-20
     const tx = await state.signer.sendTransaction({
       to: recipient,
-      value: ethers.parseEther(amount)   // 18 decimals, not parseUnits(..., 6)
+      value: ethers.parseEther(amount) 
     });
 
     setStatus("Waiting for confirmation...", "info");

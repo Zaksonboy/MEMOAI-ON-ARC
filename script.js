@@ -95,5 +95,36 @@ generateBtn.addEventListener("click", async () => {
     return;
   }
 
-  memoBox.textContent = "Generating memo...";
-});
+  try {
+
+  showStatus("Generating AI memo...", "info");
+
+  const response = await fetch("/api/generateMemo", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      recipient,
+      amount,
+      purpose
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to generate memo.");
+  }
+
+  memoBox.textContent = data.memo;
+
+  showStatus("AI memo generated successfully.", "success");
+
+} catch (error) {
+
+  console.error(error);
+
+  showStatus(error.message, "error");
+
+  }

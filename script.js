@@ -125,9 +125,9 @@ generateBtn.addEventListener("click", async () => {
 
   console.error(error);
 
-  showStatus(error.message, "error");
+  showStatus(error.message, "error"); }
 
-  }
+  });
 
 
     sendBtn.addEventListener("click", async () => {
@@ -139,7 +139,12 @@ generateBtn.addEventListener("click", async () => {
 
   const recipient = document.getElementById("recipient").value.trim();
   const amount = document.getElementById("amount").value.trim();
+const memo = memoBox.textContent.trim();
 
+if (!memo) {
+  showStatus("Please generate an AI memo first.", "error");
+  return;
+            }
   if (!ethers.isAddress(recipient)) {
     showStatus("Enter a valid wallet address.", "error");
     return;

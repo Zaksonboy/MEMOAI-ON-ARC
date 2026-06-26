@@ -96,3 +96,47 @@ async function connectWallet() {
 ui.connect.addEventListener("click", connectWallet);
 
 hideTransaction();
+async function generateMemo() {
+  const recipient = ui.recipient.value.trim();
+  const amount = ui.amount.value.trim();
+  const purpose = ui.purpose.value.trim();
+
+  if (!recipient || !amount || !purpose) {
+    setStatus("Please fill in all fields.", "error");
+    return;
+  }
+
+  try {
+    ui.generate.disabled = true;
+    setStatus("Generating AI memo...", "info");
+
+    const response = await fetch("/api/generateMemo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        recipient,
+        amount,
+        purpose
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to generate memo.");
+    }
+
+    ui.memo.textContent = data.memo;
+    setStatus("AI memo generated successfully.", "success");
+
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Failed to generate memo.", "error");
+  } finally {
+    ui.generate.disabled = false;
+  }
+}
+
+ui.generate.addEventListener("click", generateMemo);

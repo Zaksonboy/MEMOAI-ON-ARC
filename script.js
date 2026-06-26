@@ -75,3 +75,28 @@ async function connectWallet() {
 }
 
 ui.connect.addEventListener("click", connectWallet);
+...
+
+function hideTransaction() {
+  ui.txLink.style.display = "none";
+}
+
+// Wallet
+
+async function switchToArc() {
+  ...
+}
+
+async function connectWallet() {
+  ...
+}
+
+ui.connect.addEventListener("click", connectWallet);
+
+// 👇 Paste the AI memo module here
+
+async function generateMemo() {
+  ...
+}
+
+ui.generate.addEventListener("click", generateMemo);

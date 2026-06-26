@@ -12,7 +12,7 @@ const status = document.getElementById("status");
 let provider = null;
 let signer = null;
 let walletAddress = "";
-
+const txLink = document.getElementById("txLink");
 function showStatus(message, type = "info") {
   status.textContent = message;
   status.className = "status " + type;

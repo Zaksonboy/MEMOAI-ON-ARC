@@ -207,13 +207,16 @@ async function sendPayment() {
 
   try {
     const value = ethers.parseUnits(amountStr, 6);
-    const memoHex = ethers.hexlify(ethers.toUtf8Bytes(memo));
+    // Encode memo as UTF-8 hex for on-chain storage
+const memoBytes = ethers.toUtf8Bytes(memo);
+const memoHex = ethers.hexlify(memoBytes);
 
-    const tx = await signer.sendTransaction({
-      to,
-      value,
-      data: memoHex,
-    });
+const tx = await signer.sendTransaction({
+  to,
+  value,
+  data: memoHex,
+  gasLimit: 100000n,
+});
 
     showStatus('Submitted. Waiting for confirmation…', 'info');
     await tx.wait();

@@ -1,88 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>ArcMemoAI</title>
-
-<link rel="stylesheet" href="style.css">
-
-<script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>momoAI — USDC Payment Assistant</title>
+<link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
 
-<div class="container">
+<header>
+  <div class="logo-mark">mo</div>
+  <div class="logo-text">
+    <span class="logo-name">momoAI <span class="net-badge"><span class="net-dot"></span>Arc Testnet</span></span>
+    <span class="logo-sub">USDC Payment Assistant</span>
+  </div>
+  <button class="wallet-pill" id="walletBtn" onclick="connectWallet()">Connect Wallet</button>
+</header>
 
+<div id="status"></div>
+
+<!-- Payment Form -->
 <div class="card">
+  <div class="card-label">New Payment</div>
 
-<h1>🤖 ArcMemoAI</h1>
+  <div class="field">
+    <label>Recipient Address</label>
+    <input type="text" id="toAddr" class="mono" placeholder="0x..." autocomplete="off" />
+  </div>
 
-<p class="subtitle">
-AI-powered Arc Transaction Memo Generator
-</p>
+  <div class="field">
+    <label>Amount</label>
+    <div class="amount-row">
+      <input type="number" id="amount" placeholder="0.00" min="0" step="any" />
+      <div class="currency-badge">USDC</div>
+    </div>
+  </div>
 
-<button id="connectBtn">
-🔗 Connect Wallet
-</button>
+  <div class="field">
+    <label>Description <span class="hint">what is this payment for?</span></label>
+    <input type="text" id="description" placeholder="e.g. Website design payment" />
+  </div>
 
-<div id="walletBox" class="wallet-box">
-Wallet not connected
+  <div class="field">
+    <label>AI Memo <span class="ai-tag">✦ AI-generated</span></label>
+    <div class="memo-box">
+      <textarea id="memo" placeholder="Fill in the fields above, then click Generate…"></textarea>
+      <button class="memo-generate-btn" id="generateBtn" onclick="generateMemo()">
+        <span class="spark">✦</span> Generate
+      </button>
+    </div>
+    <div class="ai-thinking" id="aiThinking">
+      <div class="dot-pulse"><span></span><span></span><span></span></div>
+      momoAI is writing your memo…
+    </div>
+  </div>
+
+  <button class="send-btn" id="sendBtn" onclick="sendPayment()">Send Payment</button>
 </div>
 
-<hr>
-
-<h2>Create Payment</h2>
-
-<label>Recipient Address</label>
-
-<input
-type="text"
-id="recipient"
-placeholder="0x..."
->
-
-<label>Amount (USDC)</label>
-
-<input
-type="number"
-id="amount"
-placeholder="10"
-step="0.01"
->
-
-<label>Purpose</label>
-
-<textarea
-id="purpose"
-placeholder="Example: Website design payment"
-></textarea>
-
-<button id="generateBtn">
- Generate AI Memo
-</button>
-
-<pre id="memoBox" class="memo-box">
-Your generated memo will appear here...
-</pre>
-
-<button id="sendBtn">
-💸 Send Payment
-</button>
-
-<a id="txLink" target="_blank" style="display:none">
-View Transaction
-</a>
-
-<div id="status" class="status"></div>
-
+<!-- History -->
+<div class="card history-card">
+  <div class="history-header">
+    <div class="card-label" style="margin-bottom:0">Payment History</div>
+    <button class="clear-btn" onclick="clearHistory()">Clear all</button>
+  </div>
+  <div class="history-list" id="historyList">
+    <div class="history-empty">No payments yet. Send your first one above.</div>
+  </div>
 </div>
 
-</div>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
 <script src="script.js"></script>
-
 </body>
 </html>

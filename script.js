@@ -194,8 +194,10 @@ async function sendPayment() {
     return;
   }
   if (!memo) {
-    showStatus('Please generate or write a memo first.', 'err');
-    return;
+  showStatus('Generate a memo first — click ✦ Generate above.', 'err');
+  // Auto scroll to memo
+  document.getElementById('memo').scrollIntoView({ behavior: 'smooth' });
+  return;
   }
 
   const sendBtn = document.getElementById('sendBtn');

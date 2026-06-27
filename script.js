@@ -1,3 +1,4 @@
+alert("script loaded");
 const ARC = {
   chainId: "0x4CF4B2",
   rpc: "https://rpc.testnet.arc.network",

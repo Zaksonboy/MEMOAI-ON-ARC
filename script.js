@@ -199,7 +199,7 @@ async function sendPayment() {
   showStatus('Confirm in your wallet…', 'info');
 
   try {
-    const value = ethers.parseEther(amountStr);
+    const value = ethers.parseUnits(amountStr, 6);
     const memoHex = ethers.hexlify(ethers.toUtf8Bytes(memo));
 
     const tx = await signer.sendTransaction({

@@ -66,10 +66,15 @@ async function connectWallet() {
     signer = await provider.getSigner();
 
     const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+const currentChain = parseInt(chainId, 16);
 
-    if (chainId !== ARC_CHAIN_HEX) {
-      showStatus('Switching to Arc Testnet…', 'info');
-      await switchToArc();
+if (currentChain !== ARC_CHAIN_ID) {
+  showStatus('Switching to Arc Testnet…', 'info');
+  await switchToArc();
+  // Re-init provider after chain switch
+  provider = new ethers.BrowserProvider(window.ethereum);
+  signer = await provider.getSigner();
+}
     }
 
     updateWalletButton(walletAddress);

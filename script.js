@@ -1,4 +1,3 @@
-// ── Config ──
 const ARC_CHAIN_ID = 5042002;
 const ARC_CHAIN_HEX = '0x4CF4B2';
 const ARC_RPC = 'https://rpc.testnet.arc.network';
@@ -7,7 +6,6 @@ const STORAGE_KEY = 'momoAI_history';
 
 let provider, signer, walletAddress;
 
-// ── Wallet ──
 async function connectWallet() {
   if (!window.ethereum) {
     return showStatus('MetaMask not detected. Please install it.', 'err');
@@ -21,7 +19,6 @@ async function connectWallet() {
     provider = new ethers.BrowserProvider(window.ethereum);
     signer = await provider.getSigner();
 
-    // Switch to Arc Testnet
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
@@ -33,11 +30,11 @@ async function connectWallet() {
         await window.ethereum.request({
           method: 'wallet_addEthereumChain',
           params: [{
-            chainId: ARC_CHAIN_HEX,
+            chainId: 5042002,
             chainName: 'Arc Testnet',
-            rpcUrls: [ARC_RPC],
+            rpcUrls: [https://rpc.testnet.arc.network],
             nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-            blockExplorerUrls: [ARC_EXPLORER],
+            blockExplorerUrls: [testnet.arcscan.app],
           }],
         });
       } else {

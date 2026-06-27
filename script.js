@@ -1,3 +1,4 @@
+// ── Config ──
 const ARC_CHAIN_ID = 5042002;
 const ARC_CHAIN_HEX = '0x4CF4B2';
 const ARC_RPC = 'https://rpc.testnet.arc.network';
@@ -6,61 +7,139 @@ const STORAGE_KEY = 'momoAI_history';
 
 let provider, signer, walletAddress;
 
+// ── Wait for page to fully load ──
+window.addEventListener('load', function () {
+  renderHistory();
+  checkIfAlreadyConnected();
+
+  if (window.ethereum) {
+    window.ethereum.on('accountsChanged', function (accounts) {
+      if (accounts.length === 0) {
+        resetWallet();
+      } else {
+        location.reload();
+      }
+    });
+    window.ethereum.on('chainChanged', function () {
+      location.reload();
+    });
+  }
+});
+
+// ── Check if wallet already connected ──
+async function checkIfAlreadyConnected() {
+  if (!window.ethereum) return;
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if (accounts && accounts.length > 0) {
+      walletAddress = accounts[0];
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner();
+      updateWalletButton(walletAddress);
+    }
+  } catch (e) {
+    console.log('Not connected yet');
+  }
+}
+
+// ── Connect Wallet ──
 async function connectWallet() {
-  if (!window.ethereum) {
-    return showStatus('MetaMask not detected. Please install it.', 'err');
+  if (typeof window.ethereum === 'undefined') {
+    showStatus('No wallet found. Open this site inside MetaMask or Rabby browser.', 'err');
+    return;
   }
 
   try {
-    showStatus('Connecting wallet…', 'info');
+    showStatus('Connecting…', 'info');
 
-    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const accounts = await window.ethereum.request({
+      method: 'eth_requestAccounts'
+    });
+
+    if (!accounts || accounts.length === 0) {
+      showStatus('No accounts found. Unlock your wallet and try again.', 'err');
+      return;
+    }
+
     walletAddress = accounts[0];
     provider = new ethers.BrowserProvider(window.ethereum);
     signer = await provider.getSigner();
 
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: ARC_CHAIN_HEX }],
-      });
-    } catch (switchErr) {
-      // Chain not added yet — add it
-      if (switchErr.code === 4902) {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: 5042002,
-            chainName: 'Arc Testnet',
-            rpcUrls: [https://rpc.testnet.arc.network],
-            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-            blockExplorerUrls: [testnet.arcscan.app],
-          }],
-        });
-      } else {
-        throw switchErr;
-      }
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+
+    if (chainId !== ARC_CHAIN_HEX) {
+      showStatus('Switching to Arc Testnet…', 'info');
+      await switchToArc();
     }
 
-    // Update wallet button
-    const btn = document.getElementById('walletBtn');
-    btn.textContent = walletAddress.slice(0, 6) + '…' + walletAddress.slice(-4);
-    btn.classList.add('connected');
+    updateWalletButton(walletAddress);
+    showStatus('Wallet connected ✓', 'ok');
 
-    showStatus('Wallet connected to Arc Testnet ✓', 'ok');
   } catch (e) {
-    showStatus('Connection failed: ' + (e.message || e), 'err');
+    if (e.code === 4001) {
+      showStatus('Connection rejected. Please approve in your wallet.', 'err');
+    } else {
+      showStatus('Error: ' + (e.message || 'Unknown error'), 'err');
+    }
   }
 }
 
-// ── AI Memo Generation ──
+// ── Switch to Arc Testnet ──
+async function switchToArc() {
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: ARC_CHAIN_HEX }],
+    });
+  } catch (switchErr) {
+    if (switchErr.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: ARC_CHAIN_HEX,
+          chainName: 'Arc Testnet',
+          rpcUrls: [ARC_RPC],
+          nativeCurrency: {
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 18,
+          },
+          blockExplorerUrls: [ARC_EXPLORER],
+        }],
+      });
+    } else {
+      throw switchErr;
+    }
+  }
+}
+
+// ── Update wallet button ──
+function updateWalletButton(address) {
+  const btn = document.getElementById('walletBtn');
+  btn.textContent = address.slice(0, 6) + '…' + address.slice(-4);
+  btn.classList.add('connected');
+}
+
+// ── Reset wallet state ──
+function resetWallet() {
+  walletAddress = null;
+  signer = null;
+  provider = null;
+  const btn = document.getElementById('walletBtn');
+  btn.textContent = 'Connect Wallet';
+  btn.classList.remove('connected');
+  showStatus('Wallet disconnected.', 'info');
+}
+
+// ── Generate AI Memo ──
 async function generateMemo() {
   const address = document.getElementById('toAddr').value.trim();
   const amount = document.getElementById('amount').value.trim();
   const description = document.getElementById('description').value.trim();
 
   if (!description) {
-    return showStatus('Please enter a description first.', 'err');
+    showStatus('Please enter a description first.', 'err');
+    return;
   }
 
   const btn = document.getElementById('generateBtn');
@@ -69,7 +148,6 @@ async function generateMemo() {
   thinking.classList.add('visible');
 
   try {
-    // Calls secure serverless function — API key never exposed in frontend
     const res = await fetch('/api/generate-memo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -84,7 +162,7 @@ async function generateMemo() {
       showStatus(data.error || 'Could not generate memo. Write one manually.', 'err');
     }
   } catch (e) {
-    showStatus('AI unavailable: ' + (e.message || e), 'err');
+    showStatus('AI error: ' + (e.message || e), 'err');
   } finally {
     btn.disabled = false;
     thinking.classList.remove('visible');
@@ -92,37 +170,36 @@ async function generateMemo() {
 }
 
 // ── Send Payment ──
-async function connectWallet() {
-  alert('Button clicked. ethereum: ' + (typeof window.ethereum));
-  
-  if (!window.ethereum) {
-    return showStatus('MetaMask not detected. Please install it.', 'err');
+async function sendPayment() {
+  if (!signer) {
+    showStatus('Connect your wallet first.', 'err');
+    return;
   }
 
   const to = document.getElementById('toAddr').value.trim();
   const amountStr = document.getElementById('amount').value.trim();
   const memo = document.getElementById('memo').value.trim();
 
-  // Validate
   if (!ethers.isAddress(to)) {
-    return showStatus('Invalid recipient address.', 'err');
+    showStatus('Invalid recipient address.', 'err');
+    return;
   }
   if (!amountStr || isNaN(amountStr) || parseFloat(amountStr) <= 0) {
-    return showStatus('Enter a valid amount.', 'err');
+    showStatus('Enter a valid amount.', 'err');
+    return;
   }
   if (!memo) {
-    return showStatus('Please generate or write a memo before sending.', 'err');
+    showStatus('Please generate or write a memo first.', 'err');
+    return;
   }
 
   const sendBtn = document.getElementById('sendBtn');
   sendBtn.disabled = true;
   sendBtn.textContent = 'Sending…';
-  showStatus('Confirm the transaction in MetaMask…', 'info');
+  showStatus('Confirm in your wallet…', 'info');
 
   try {
     const value = ethers.parseEther(amountStr);
-
-    // Encode memo as hex — stored in transaction data field on-chain
     const memoHex = ethers.hexlify(ethers.toUtf8Bytes(memo));
 
     const tx = await signer.sendTransaction({
@@ -131,35 +208,35 @@ async function connectWallet() {
       data: memoHex,
     });
 
-    showStatus('Transaction submitted. Waiting for confirmation…', 'info');
+    showStatus('Submitted. Waiting for confirmation…', 'info');
     await tx.wait();
 
     showStatus(
-      `Payment confirmed! <a class="tx-link" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 16)}…</a>`,
+      `Confirmed! <a class="tx-link" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 16)}…</a>`,
       'ok'
     );
 
-    // Save to local history
-    saveHistory({
-      to,
-      amount: amountStr,
-      memo,
-      hash: tx.hash,
-      time: Date.now(),
-    });
-
-    // Clear form
-    document.getElementById('toAddr').value = '';
-    document.getElementById('amount').value = '';
-    document.getElementById('description').value = '';
-    document.getElementById('memo').value = '';
+    saveHistory({ to, amount: amountStr, memo, hash: tx.hash, time: Date.now() });
+    clearForm();
 
   } catch (e) {
-    showStatus('Transaction failed: ' + (e.reason || e.message || e), 'err');
+    if (e.code === 4001) {
+      showStatus('Transaction rejected.', 'err');
+    } else {
+      showStatus('Failed: ' + (e.reason || e.message || e), 'err');
+    }
   } finally {
     sendBtn.disabled = false;
     sendBtn.textContent = 'Send Payment';
   }
+}
+
+// ── Clear form ──
+function clearForm() {
+  document.getElementById('toAddr').value = '';
+  document.getElementById('amount').value = '';
+  document.getElementById('description').value = '';
+  document.getElementById('memo').value = '';
 }
 
 // ── History ──
@@ -173,7 +250,7 @@ function loadHistory() {
 
 function saveHistory(entry) {
   const history = loadHistory();
-  history.unshift(entry); // newest first
+  history.unshift(entry);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 50)));
   renderHistory();
 }
@@ -186,6 +263,7 @@ function clearHistory() {
 
 function renderHistory() {
   const list = document.getElementById('historyList');
+  if (!list) return;
   const history = loadHistory();
 
   if (!history.length) {
@@ -213,30 +291,10 @@ function renderHistory() {
 // ── Status Toast ──
 function showStatus(msg, type = 'info') {
   const el = document.getElementById('status');
+  if (!el) return;
   el.innerHTML = msg;
   el.className = `show ${type}`;
   if (type === 'ok') {
     setTimeout(() => el.classList.remove('show'), 8000);
   }
-}
-
-// ── Init ──
-renderHistory();
-
-// Listen for account/chain changes
-if (window.ethereum) {
-  window.ethereum.on('accountsChanged', (accounts) => {
-    if (accounts.length === 0) {
-      walletAddress = null;
-      signer = null;
-      const btn = document.getElementById('walletBtn');
-      btn.textContent = 'Connect Wallet';
-      btn.classList.remove('connected');
-      showStatus('Wallet disconnected.', 'info');
-    } else {
-      location.reload();
-    }
-  });
-
-  window.ethereum.on('chainChanged', () => location.reload());
 }

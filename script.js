@@ -1,20 +1,38 @@
-const ARC_CHAIN_ID = 5042002;
-const ARC_CHAIN_HEX = "0x4CF4B2";
-const ARC_RPC = "https://rpc.testnet.arc.network";
-const ARC_EXPLORER = "https://testnet.arcscan.app";
-const USDC_ADDRESS = "0x3600000000000000000000000000000000000000";
-const MEMO_CONTRACT = "0x5294E9927c3306DcBaDb03fe70b92e01cCede505";
-
-const USDC_ABI = [
-  "function transfer(address,uint256) returns (bool)"
-];
+// ── Arc Memo contract constants ──
+const MEMO_CONTRACT_ADDRESS = '0x5294E9927c3306DcBaDb03fe70b92e01cCede505';
+const USDC_TOKEN_ADDRESS = '0x3600000000000000000000000000000000000000';
 
 const MEMO_ABI = [
-  "function memo(address target, bytes data, bytes32 memoId, bytes memoData) external payable returns (bytes)"
+  {
+    "type": "function",
+    "name": "memo",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "target", "type": "address" },
+      { "name": "data", "type": "bytes" },
+      { "name": "memoId", "type": "bytes32" },
+      { "name": "memoData", "type": "bytes" }
+    ],
+    "outputs": []
+  },
+  {
+    "type": "event",
+    "name": "Memo",
+    "anonymous": false,
+    "inputs": [
+      { "name": "sender", "type": "address", "indexed": true },
+      { "name": "target", "type": "address", "indexed": true },
+      { "name": "callDataHash", "type": "bytes32", "indexed": false },
+      { "name": "memoId", "type": "bytes32", "indexed": true },
+      { "name": "memo", "type": "bytes", "indexed": false },
+      { "name": "memoIndex", "type": "uint256", "indexed": false }
+    ]
+  }
 ];
-const STORAGE_KEY = 'momoAI_history';
-let provider, signer, walletAddress;
 
+const ERC20_ABI = [
+  "function transfer(address to, uint256 amount) returns (bool)"
+];
 // ── Init on load ──
 window.addEventListener('load', function () {
   renderHistory();
@@ -204,7 +222,7 @@ function estimateGasForMemo(memoHex) {
   return base + extra;
 }
 
-// ── Send Payment ──
+// ── Send Payment (via Arc Memo contract) ──
 async function sendPayment() {
   if (!signer) {
     showStatus('Connect your wallet first.', 'err');
@@ -239,24 +257,42 @@ async function sendPayment() {
   showStatus('Confirm in your wallet…', 'info');
 
   try {
-    // USDC = 6 decimals on Arc
-    const value = ethers.parseUnits(amountStr, 6);
+    // USDC = 6 decimals (ERC-20 token on Arc)
+    const amountUnits = ethers.parseUnits(amountStr, 6);
 
-    // Encode memo as hex → stored in tx.data on-chain
-    const memoHex = ethers.hexlify(ethers.toUtf8Bytes(memo));
+    // Build interfaces
+    const erc20Interface = new ethers.Interface(ERC20_ABI);
+    const memoInterface = new ethers.Interface(MEMO_ABI);
 
-    // Dynamically size gas limit based on memo length (longer structured memos need more gas)
-    const gasLimit = estimateGasForMemo(memoHex);
+    // Encode the inner USDC transfer call
+    const transferData = erc20Interface.encodeFunctionData('transfer', [to, amountUnits]);
+
+    // Unique memoId for this payment (based on time + random)
+    const uniqueRef = `momoai-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const memoId = ethers.id(uniqueRef);
+
+    // Memo text as bytes
+    const memoBytes = ethers.toUtf8Bytes(memo);
+
+    // Encode the outer call to the Memo contract
+    const memoCallData = memoInterface.encodeFunctionData('memo', [
+      USDC_TOKEN_ADDRESS,
+      transferData,
+      memoId,
+      memoBytes,
+    ]);
 
     const tx = await signer.sendTransaction({
-      to,
-      value,
-      data: memoHex,
-      gasLimit,
+      to: MEMO_CONTRACT_ADDRESS,
+      data: memoCallData,
     });
 
     showStatus('Submitted. Waiting for confirmation…', 'info');
     const receipt = await tx.wait();
+
+    if (receipt.status !== 1) {
+      throw new Error('Transaction reverted on-chain.');
+    }
 
     showStatus(
       `Confirmed! <a class="tx-link" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 16)}…</a>`,

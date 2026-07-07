@@ -1,3 +1,6 @@
+const STORAGE_KEY = 'momoAI_history';
+
+let provider, signer, walletAddress;
 // ── Arc Memo contract constants ──
 const MEMO_CONTRACT_ADDRESS = '0x5294E9927c3306DcBaDb03fe70b92e01cCede505';
 const USDC_TOKEN_ADDRESS = '0x3600000000000000000000000000000000000000';

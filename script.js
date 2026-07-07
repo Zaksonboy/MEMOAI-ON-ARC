@@ -1,8 +1,3 @@
-// ── Config ──
-const ARC_CHAIN_ID = 5042002;
-const ARC_CHAIN_HEX = '0x4CF4B2';
-const ARC_RPC = 'https://rpc.testnet.arc.network';
-const ARC_EXPLORER = 'https://testnet.arcscan.app';
 const STORAGE_KEY = 'momoAI_history';
 
 let provider, signer, walletAddress;
@@ -122,6 +117,11 @@ async function generateMemo() {
     return;
   }
 
+  if (!walletAddress) {
+    showStatus('Connect your wallet first.', 'err');
+    return;
+  }
+
   const btn = document.getElementById('generateBtn');
   const thinking = document.getElementById('aiThinking');
   btn.disabled = true;
@@ -142,7 +142,29 @@ async function generateMemo() {
     const data = await res.json();
 
     if (data.memo) {
-      document.getElementById('memo').value = data.memo;
+      // Build structured memo using REAL wallet data + AI-polished reason
+      const now = new Date();
+
+      const dateStr = String(now.getDate()).padStart(2, '0') + '-' +
+                       String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                       now.getFullYear();
+
+      let hours = now.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      if (hours === 0) hours = 12;
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const timeStr = `${hours}:${minutes}${ampm}`;
+
+      const structuredMemo =
+        `From: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}\n` +
+        `To: ${address.slice(0, 6)}...${address.slice(-4)}\n` +
+        `Amount: ${amount}\n` +
+        `Payment for: ${data.memo}\n` +
+        `Date: ${dateStr}\n` +
+        `Time: ${timeStr}`;
+
+      document.getElementById('memo').value = structuredMemo;
       showStatus('Memo generated ✓', 'ok');
     } else {
       showStatus(data.error || 'No memo returned. Write one manually.', 'err');
@@ -154,6 +176,19 @@ async function generateMemo() {
     btn.disabled = false;
     thinking.classList.remove('visible');
   }
+}
+
+// ── Estimate safe gas limit based on memo size ──
+function estimateGasForMemo(memoHex) {
+  // Remove '0x' prefix, get byte length
+  const byteLength = (memoHex.length - 2) / 2;
+
+  // Base transfer cost + buffer per byte of calldata + safety margin
+  const base = 100000n;
+  const perByte = 40n; // generous buffer per byte
+  const extra = BigInt(byteLength) * perByte;
+
+  return base + extra;
 }
 
 // ── Send Payment ──
@@ -197,11 +232,14 @@ async function sendPayment() {
     // Encode memo as hex → stored in tx.data on-chain
     const memoHex = ethers.hexlify(ethers.toUtf8Bytes(memo));
 
+    // Dynamically size gas limit based on memo length (longer structured memos need more gas)
+    const gasLimit = estimateGasForMemo(memoHex);
+
     const tx = await signer.sendTransaction({
       to,
       value,
       data: memoHex,
-      gasLimit: 100000n,
+      gasLimit,
     });
 
     showStatus('Submitted. Waiting for confirmation…', 'info');
@@ -317,4 +355,4 @@ if (typeof window.ethereum !== 'undefined') {
   window.ethereum.on('chainChanged', function () {
     location.reload();
   });
-}
+    }

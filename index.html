@@ -9,7 +9,6 @@
 <body>
 
 <header>
-  <header>
   <img src="images/arc-logo.png" class="logo-mark" alt="Arc">
   <div class="logo-text">
     <span class="logo-name">momoAI <span class="net-badge"><span class="net-dot"></span>Arc Testnet</span></span>
@@ -17,50 +16,6 @@
   </div>
   <button class="wallet-pill" id="walletBtn" onclick="connectWallet()">Connect Wallet</button>
 </header>
-
-<p class="hero-sub">
-    momoAI writes a clear, professional memo for every USDC payment you send —
-    then records it on-chain through Arc's Memo contract, so the reason
-    behind the transfer is never lost.
-</p>
-
-  <div class="arc-visual" aria-hidden="true">
-    <svg viewBox="0 0 400 120" class="arc-svg">
-      <defs>
-        <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#7c6cfa" />
-          <stop offset="100%" stop-color="#3de6c8" />
-        </linearGradient>
-      </defs>
-      <path class="arc-path" d="M 40 100 Q 200 -10 360 100" fill="none" stroke="url(#arcGrad)" stroke-width="2" stroke-linecap="round" />
-      <circle class="arc-node" cx="40" cy="100" r="6" fill="#7c6cfa" />
-      <circle class="arc-node arc-node-end" cx="360" cy="100" r="6" fill="#3de6c8" />
-    </svg>
-    <div class="arc-labels">
-      <span class="arc-label-from">Sender</span>
-      <span class="arc-label-to">Recipient</span>
-    </div>
-  </div>
-</section>
-
-<!-- Feature cards -->
-<section class="features">
-  <div class="feature-card">
-    <div class="feature-icon">✦</div>
-    <div class="feature-title">AI-Written Memos</div>
-    <div class="feature-text">Describe the payment in a few words. momoAI turns it into a clear, professional reference line.</div>
-  </div>
-  <div class="feature-card">
-    <div class="feature-icon">◈</div>
-    <div class="feature-title">Verifiable On-Chain</div>
-    <div class="feature-text">Every memo is recorded through Arc's native Memo contract — a permanent, queryable record, not just an off-chain note.</div>
-  </div>
-  <div class="feature-card">
-    <div class="feature-icon">⟡</div>
-    <div class="feature-title">Built for Arc</div>
-    <div class="feature-text">Native USDC transfers on Arc Testnet, with gas fees paid in the same currency you're sending.</div>
-  </div>
-</section>
 
 <div id="status"></div>
 
@@ -113,24 +68,6 @@
     <div class="history-empty">No payments yet. Send your first one above.</div>
   </div>
 </div>
-
-<!-- Footer -->
-<footer class="site-footer">
-  <div class="footer-top">
-    <div class="footer-brand">
-      <div class="logo-mark footer-mark">mo</div>
-      <span>momoAI</span>
-    </div>
-    <div class="footer-links">
-      <a href="https://testnet.arcscan.app" target="_blank">Explorer</a>
-      <a href="https://docs.arc.io" target="_blank">Arc Docs</a>
-      <a href="https://github.com/Zaksonboy/MEMOAI-ON-ARC" target="_blank">GitHub</a>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <span>Running on Arc Testnet — for testing only, no real funds.</span>
-  </div>
-</footer>
 
 <script>
   const ARC_CHAIN_ID = 5042002;

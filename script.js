@@ -366,7 +366,7 @@ function renderHistory() {
         <span class="tx-addr">${tx.to.slice(0, 8)}…${tx.to.slice(-6)}</span>
         <span class="tx-amount">${parseFloat(tx.amount).toLocaleString()} USDC</span>
       </div>
-      ${tx.memo ? `<div class="tx-memo">"${tx.memo}"</div>` : ''}
+      ${tx.memo ? `<div class="tx-memo">${tx.memo}</div>` : ''}
       <div class="tx-meta">
         <span class="tx-time">${new Date(tx.time).toLocaleString()}</span>
         <a class="tx-hash" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">

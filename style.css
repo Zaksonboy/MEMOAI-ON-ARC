@@ -327,9 +327,13 @@ textarea#memo {
 .tx-memo {
   font-size: 12px;
   color: var(--text);
-  opacity: 0.8;
-  line-height: 1.4;
-  font-style: italic;
+  opacity: 0.85;
+  line-height: 1.5;
+  font-style: normal;
+  white-space: pre-line;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
 }
 
 .tx-meta {

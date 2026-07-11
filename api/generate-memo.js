@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
     const prompt = `You are a payment memo writer for Web3 transactions.
 
-Generate a short, professional payment memo (maximum 15 words) for this USDC transaction on the Arc blockchain.
+Generate a short, professional payment memo (maximum 30 words) for this USDC transaction on the Arc blockchain.
 
 Payment details:
 - Purpose: ${description}
@@ -24,7 +24,7 @@ ${amount ? `- Amount: ${amount} USDC` : ''}
 ${address ? `- Recipient: ${address}` : ''}
 
 Rules:
-- Keep it under 15 words
+- Keep it under 30 words
 - Make it clear and professional
 - Do NOT include the amount or wallet address in the memo
 - Write it like a bank transfer reference (e.g. "Freelance design work - Invoice #003")
@@ -42,7 +42,8 @@ Rules:
             }
           ],
           generationConfig: {
-            maxOutputTokens: 60
+          maxOutputTokens: 200,
+          temperature: 0.7
           }
         }),
       }

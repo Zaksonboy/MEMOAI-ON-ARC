@@ -1,20 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>momoAI — USDC Payment Assistant</title>
-<link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>momoAI — AI Powered USDC Payments</title>
+
+<link rel="stylesheet" href="style.css">
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
 </head>
+
 <body>
 
+<!-- =========================
+     LANDING PAGE
+========================== -->
+
+<section id="landingPage">
+
+<div class="landing-container">
+
+<img src="images/arc-logo.png"
+class="landing-logo"
+alt="Arc">
+
+<div class="hero-badge">
+Built on Arc Testnet
+</div>
+
+<h1 class="hero-title">
+Payments that explain themselves.
+</h1>
+
+<p class="hero-description">
+
+momoAI is an AI-powered payment assistant that generates professional payment memos and permanently records them on-chain using Arc's Memo Contract.
+
+</p>
+
+<div class="hero-grid">
+
+<div class="hero-card">
+
+<h3>🤖 AI Memo</h3>
+
+<p>
+Describe your payment in plain English.
+Gemini writes a professional memo automatically.
+</p>
+
+</div>
+
+<div class="hero-card">
+
+<h3>💙 Native USDC</h3>
+
+<p>
+
+Send native USDC directly on Arc Testnet with seamless wallet integration.
+
+</p>
+
+</div>
+
+<div class="hero-card">
+
+<h3>📝 On-chain Records</h3>
+
+<p>
+
+Every memo becomes a permanent blockchain record through Arc Memo Contract.
+
+</p>
+
+</div>
+
+<div class="hero-card">
+
+<h3>⚡ Built for Arc</h3>
+
+<p>
+
+A showcase of Arc programmable payments and transaction memos.
+
+</p>
+
+</div>
+
+</div>
+
+<div class="flow-box">
+
+<div>Describe Payment</div>
+
+↓
+
+<div>Gemini AI</div>
+
+↓
+
+<div>Professional Memo</div>
+
+↓
+
+<div>Arc Memo Contract</div>
+
+↓
+
+<div>USDC Transfer</div>
+
+</div>
+
+<button class="enter-btn" onclick="openApp()">
+
+Enter App →
+
+</button>
+
+</div>
+
+</section>
+
+<!-- =========================
+      APP PAGE
+========================== -->
+
+<div id="appPage" style="display:none;">
+
 <header>
-  <img src="images/arc-logo.png" class="logo-mark" alt="Arc">
-  <div class="logo-text">
-    <span class="logo-name">momoAI <span class="net-badge"><span class="net-dot"></span>Arc Testnet</span></span>
-    <span class="logo-sub">USDC Payment Assistant</span>
-  </div>
-  <button class="wallet-pill" id="walletBtn" onclick="connectWallet()">Connect Wallet</button>
+
+<img src="images/arc-logo.png"
+class="logo-mark"
+alt="Arc">
+
+<div class="logo-text">
+
+<span class="logo-name">
+
+momoAI
+
+<span class="net-badge">
+
+<span class="net-dot"></span>
+
+Arc Testnet
+
+</span>
+
+</span>
+
+<span class="logo-sub">
+
+AI Payment Assistant
+
+</span>
+
+</div>
+
+<button
+
+class="wallet-pill"
+
+id="walletBtn"
+
+onclick="connectWallet()">
+
+Connect Wallet
+
+</button>
+
 </header>
 
 <div id="status"></div>

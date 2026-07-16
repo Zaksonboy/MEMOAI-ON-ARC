@@ -296,7 +296,27 @@ async function sendPayment() {
     if (receipt.status !== 1) {
       throw new Error('Transaction reverted on-chain.');
     }
+// Verify the Memo event was actually emitted with the right data
+const memoTopic = memoInterface.getEvent('Memo')?.topicHash;
+const memoEvents = [];
+for (const log of receipt.logs) {
+  if (log.address.toLowerCase() !== MEMO_CONTRACT_ADDRESS.toLowerCase()) continue;
+  const parsed = memoInterface.parseLog(log);
+  if (parsed?.name === 'Memo') memoEvents.push(parsed);
+}
 
+if (memoEvents.length !== 1) {
+  throw new Error('Memo event missing or duplicated — payment not verified.');
+}
+
+const memoArgs = memoEvents[0].args;
+if (
+  memoArgs.sender.toLowerCase() !== walletAddress.toLowerCase() ||
+  memoArgs.target.toLowerCase() !== USDC_TOKEN_ADDRESS.toLowerCase() ||
+  memoArgs.memoId !== memoId
+) {
+  throw new Error('Memo event data does not match the submitted transaction.');
+}
     showStatus(
       `Confirmed! <a class="tx-link" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 16)}…</a>`,
       'ok'

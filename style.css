@@ -657,3 +657,33 @@ textarea#memo {
     background:linear-gradient(90deg,#6b6cff,#35d7d0);
     color:white;
 }
+.section-tabs {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }

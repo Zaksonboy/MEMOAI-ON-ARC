@@ -63,6 +63,7 @@ async function setupWallet(account) {
   const btn = document.getElementById('walletBtn');
   btn.textContent = account.slice(0, 6) + '…' + account.slice(-4);
   btn.classList.add('connected');
+  loadRecurringOrders();
 }
 
 // ── Connect Wallet ──
@@ -526,7 +527,3 @@ await fetch('/api/recurring-cancel', {
   }
 }
 
-// Load recurring orders on page load
-window.addEventListener('load', function () {
-  setTimeout(loadRecurringOrders, 600);
-});

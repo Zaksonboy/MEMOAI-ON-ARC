@@ -434,6 +434,10 @@ async function createRecurring() {
   const description = document.getElementById('recurDescription').value.trim();
   const intervalDays = document.getElementById('recurInterval').value.trim();
 
+  if (!walletAddress) {
+    showStatus('Connect your wallet first.', 'err');
+    return;
+  }
   if (!ethers.isAddress(to)) {
     showStatus('Invalid recipient address.', 'err');
     return;
@@ -455,7 +459,7 @@ async function createRecurring() {
     const res = await fetch('/api/recurring-create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, amount, description, intervalDays }),
+      body: JSON.stringify({ to, amount, description, intervalDays, walletAddress }),
     });
     const data = await res.json();
 

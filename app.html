@@ -66,6 +66,7 @@
 <div class="section-tabs">
   <button class="tab-btn active" id="tabHistoryBtn" onclick="switchTab('history')">Payment History</button>
   <button class="tab-btn" id="tabRecurringBtn" onclick="switchTab('recurring')">Recurring Payments</button>
+  <button class="tab-btn" id="tabLookupBtn" onclick="switchTab('lookup')">Look Up</button>
 </div>
 
 <div class="tab-panel active" id="historyPanel">
@@ -112,6 +113,20 @@
     <div id="recurringList" style="margin-top:16px;"></div>
   </div>
 </div>
+  <div class="tab-panel" id="lookupPanel">
+  <div class="card">
+    <div class="card-label">Look Up Payment</div>
+
+    <div class="field">
+      <label>Invoice Reference</label>
+      <input type="text" id="lookupRef" class="mono" placeholder="e.g. momoai-2026-0001" autocomplete="off" />
+    </div>
+
+    <button class="send-btn" onclick="lookupPayment()">Search On-Chain</button>
+
+    <div id="lookupResult" style="margin-top:16px;"></div>
+  </div>
+  </div>
 <script>
   const ARC_CHAIN_ID = 5042002;
   const ARC_CHAIN_HEX = '0x4CEF52';

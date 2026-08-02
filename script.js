@@ -540,3 +540,60 @@ function switchTab(tab) {
   document.getElementById('tabRecurringBtn').classList.toggle('active', tab === 'recurring');
   document.getElementById('tabLookupBtn').classList.toggle('active', tab === 'lookup');
 }
+async function lookupPayment() {
+  const ref = document.getElementById('lookupRef').value.trim();
+  const resultBox = document.getElementById('lookupResult');
+
+  if (!ref) {
+    showStatus('Enter an invoice reference.', 'err');
+    return;
+  }
+
+  resultBox.innerHTML = '<div class="history-empty">Searching on-chain…</div>';
+
+  try {
+    const memoId = ethers.id(ref);
+    const readProvider = new ethers.JsonRpcProvider(ARC_RPC);
+    const memoInterface = new ethers.Interface(MEMO_ABI);
+    const memoTopic = memoInterface.getEvent('Memo')?.topicHash;
+
+    const logs = await readProvider.getLogs({
+      address: MEMO_CONTRACT_ADDRESS,
+      topics: [memoTopic, null, null, memoId],
+      fromBlock: 0,
+      toBlock: 'latest',
+    });
+
+    if (!logs.length) {
+      resultBox.innerHTML = '<div class="history-empty">No payment found for that reference.</div>';
+      return;
+    }
+
+    const parsed = memoInterface.parseLog(logs[0]);
+    const args = parsed.args;
+    let memoText;
+    try {
+      memoText = ethers.toUtf8String(args.memo);
+    } catch {
+      memoText = '(binary memo data)';
+    }
+
+    resultBox.innerHTML = `
+      <div class="tx-item">
+        <div class="tx-row">
+          <span class="tx-addr">${args.sender.slice(0, 8)}…${args.sender.slice(-6)}</span>
+          <span class="tx-amount">Verified ✓</span>
+        </div>
+        <div class="tx-memo">${memoText.replace(/\n/g, '<br>')}</div>
+        <div class="tx-meta">
+          <span class="tx-time">Ref: ${ref}</span>
+          <a class="tx-hash" href="${ARC_EXPLORER}/tx/${logs[0].transactionHash}" target="_blank">
+            ${logs[0].transactionHash.slice(0, 10)}…
+          </a>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    resultBox.innerHTML = '<div class="history-empty">Search failed: ' + (e.message || e) + '</div>';
+  }
+}

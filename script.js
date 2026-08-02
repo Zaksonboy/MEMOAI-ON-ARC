@@ -535,6 +535,8 @@ await fetch('/api/recurring-cancel', {
 function switchTab(tab) {
   document.getElementById('historyPanel').classList.toggle('active', tab === 'history');
   document.getElementById('recurringPanel').classList.toggle('active', tab === 'recurring');
+  document.getElementById('lookupPanel').classList.toggle('active', tab === 'lookup');
   document.getElementById('tabHistoryBtn').classList.toggle('active', tab === 'history');
   document.getElementById('tabRecurringBtn').classList.toggle('active', tab === 'recurring');
+  document.getElementById('tabLookupBtn').classList.toggle('active', tab === 'lookup');
 }

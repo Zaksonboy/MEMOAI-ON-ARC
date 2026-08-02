@@ -225,7 +225,14 @@ function estimateGasForMemo(memoHex) {
 
   return base + extra;
 }
-
+function getNextInvoiceRef() {
+  const year = new Date().getFullYear();
+  const key = `momoai_invoice_counter_${year}`;
+  let count = parseInt(localStorage.getItem(key) || '0', 10) + 1;
+  localStorage.setItem(key, String(count));
+  const padded = String(count).padStart(4, '0');
+  return `momoai-${year}-${padded}`;
+}
 // ── Send Payment (via Arc Memo contract) ──
 async function sendPayment() {
   if (!signer) {

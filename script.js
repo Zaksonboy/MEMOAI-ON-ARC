@@ -271,8 +271,8 @@ async function sendPayment() {
     // Encode the inner USDC transfer call
     const transferData = erc20Interface.encodeFunctionData('transfer', [to, amountUnits]);
 
-    // Unique memoId for this payment (based on time + random)
-    const uniqueRef = `momoai-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    // Sequential, human-readable invoice ID (e.g. momoai-2026-0001)
+    const uniqueRef = getNextInvoiceRef();
     const memoId = ethers.id(uniqueRef);
 
     // Memo text as bytes

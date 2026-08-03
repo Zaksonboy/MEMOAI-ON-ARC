@@ -1,6 +1,29 @@
+// ============================================
+// momoAI — AI-Powered USDC Payments on Arc Testnet
+// ============================================
+// This file handles:
+//  1. Connecting to a wallet (with a picker if more than one is installed)
+//  2. Generating an AI-written payment memo
+//  3. Sending a USDC payment through Arc's Memo contract
+//  4. Showing payment history
+//  5. Recurring payments
+//  6. Looking up a payment by invoice reference
+// ============================================
+
 const STORAGE_KEY = 'momoAI_history';
 
-let provider, signer, walletAddress;
+// NOTE: ARC_CHAIN_ID, ARC_CHAIN_HEX, ARC_RPC, ARC_EXPLORER must already be
+// defined somewhere before this script runs (e.g. in your HTML <script> tag).
+
+// ── Global app state ──
+let provider = null;        // ethers.js provider (wraps the wallet the user picked)
+let signer = null;          // ethers.js signer (used to sign & send transactions)
+let walletAddress = null;   // the connected wallet's address
+
+// ── Wallet discovery state ──
+let discoveredProviders = []; // every wallet that has announced itself via EIP-6963
+let activeProvider = null;    // the raw EIP-1193 provider the user picked
+
 // ── Arc Memo contract constants ──
 const MEMO_CONTRACT_ADDRESS = '0x5294E9927c3306DcBaDb03fe70b92e01cCede505';
 const USDC_TOKEN_ADDRESS = '0x3600000000000000000000000000000000000000';
@@ -36,16 +59,116 @@ const MEMO_ABI = [
 const ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)"
 ];
-// ── Init on load ──
+
+
+// ============================================
+// SECTION 1: Wallet Discovery (EIP-6963)
+// ============================================
+// Modern wallets "announce" themselves when the page asks them to.
+// This lets us list every wallet installed (Rabby, MetaMask, etc.)
+// instead of blindly grabbing whichever one wins window.ethereum.
+
+window.addEventListener('eip6963:announceProvider', (event) => {
+  const { info, provider: walletProvider } = event.detail;
+  const alreadyKnown = discoveredProviders.some(p => p.info.uuid === info.uuid);
+  if (!alreadyKnown) {
+    discoveredProviders.push({ info, provider: walletProvider });
+  }
+});
+
+// Ask all installed wallets to announce themselves
+window.dispatchEvent(new Event('eip6963:requestProvider'));
+
+
+// ============================================
+// SECTION 2: Let the user pick a wallet
+// ============================================
+function pickWallet() {
+  return new Promise((resolve) => {
+    // Give wallets a moment to announce themselves
+    setTimeout(() => {
+
+      // No EIP-6963 wallets found — fall back to legacy window.ethereum
+      if (discoveredProviders.length === 0) {
+        if (typeof window.ethereum !== 'undefined') {
+          resolve(window.ethereum);
+        } else {
+          resolve(null); // no wallet installed at all
+        }
+        return;
+      }
+
+      // Exactly one wallet — just use it, no need to ask
+      if (discoveredProviders.length === 1) {
+        resolve(discoveredProviders[0].provider);
+        return;
+      }
+
+      // Multiple wallets — show a simple popup so the user can choose
+      const overlay = document.createElement('div');
+      overlay.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.6);' +
+        'display:flex;align-items:center;justify-content:center;z-index:9999;';
+
+      const box = document.createElement('div');
+      box.style.cssText =
+        'background:#1a1a1a;border-radius:12px;padding:20px;min-width:240px;';
+
+      const title = document.createElement('div');
+      title.textContent = 'Choose a wallet';
+      title.style.cssText = 'color:#fff;margin-bottom:12px;font-weight:600;';
+      box.appendChild(title);
+
+      discoveredProviders.forEach(({ info, provider: walletProvider }) => {
+        const btn = document.createElement('button');
+        btn.style.cssText =
+          'display:flex;align-items:center;gap:10px;width:100%;' +
+          'padding:10px;margin-bottom:8px;background:#2a2a2a;' +
+          'border:none;border-radius:8px;color:#fff;cursor:pointer;';
+
+        const icon = document.createElement('img');
+        icon.src = info.icon;
+        icon.style.cssText = 'width:24px;height:24px;border-radius:6px;';
+
+        const label = document.createElement('span');
+        label.textContent = info.name;
+
+        btn.appendChild(icon);
+        btn.appendChild(label);
+
+        btn.onclick = () => {
+          document.body.removeChild(overlay);
+          resolve(walletProvider);
+        };
+
+        box.appendChild(btn);
+      });
+
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+    }, 150);
+  });
+}
+
+
+// ============================================
+// SECTION 3: Init on page load
+// ============================================
 window.addEventListener('load', function () {
   renderHistory();
 
-  // If wallet already connected, restore session
+  // If a wallet was already connected last time, try to reconnect quietly
   setTimeout(async function () {
-    if (typeof window.ethereum === 'undefined') return;
+    const chosenProvider = await pickWallet();
+    if (!chosenProvider) return;
+
     try {
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      // eth_accounts (not eth_requestAccounts) won't pop up a permission prompt —
+      // it only returns accounts the user already approved before
+      const accounts = await chosenProvider.request({ method: 'eth_accounts' });
       if (accounts && accounts.length > 0) {
+        activeProvider = chosenProvider;
         await setupWallet(accounts[0]);
       }
     } catch (e) {
@@ -54,30 +177,42 @@ window.addEventListener('load', function () {
   }, 500);
 });
 
-// ── Setup wallet after getting account ──
+
+// ============================================
+// SECTION 4: Set up wallet after getting an account
+// ============================================
 async function setupWallet(account) {
   walletAddress = account;
-  provider = new ethers.BrowserProvider(window.ethereum);
+  provider = new ethers.BrowserProvider(activeProvider);
   signer = await provider.getSigner();
 
   const btn = document.getElementById('walletBtn');
   btn.textContent = account.slice(0, 6) + '…' + account.slice(-4);
   btn.classList.add('connected');
+
   loadRecurringOrders();
+  attachWalletEventListeners(); // always points at the wallet the user picked
 }
 
-// ── Connect Wallet ──
+
+// ============================================
+// SECTION 5: Connect Wallet (button click)
+// ============================================
 async function connectWallet() {
-  if (typeof window.ethereum === 'undefined') {
+  const chosenProvider = await pickWallet();
+
+  if (!chosenProvider) {
     showStatus('No wallet detected. Open inside Rabby or MetaMask browser.', 'err');
     return;
   }
 
+  activeProvider = chosenProvider;
+
   try {
     showStatus('Connecting…', 'info');
 
-    // Request accounts
-    const accounts = await window.ethereum.request({
+    // Ask the chosen wallet for permission to see the account
+    const accounts = await activeProvider.request({
       method: 'eth_requestAccounts',
     });
 
@@ -86,18 +221,18 @@ async function connectWallet() {
       return;
     }
 
-    // Setup provider + signer
     await setupWallet(accounts[0]);
 
-    // Check chain
-    const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+    // Make sure the wallet is on Arc Testnet
+    const chainIdHex = await activeProvider.request({ method: 'eth_chainId' });
     const chainIdNum = parseInt(chainIdHex, 16);
 
     if (chainIdNum !== ARC_CHAIN_ID) {
       showStatus('Switching to Arc Testnet…', 'info');
       await switchToArc();
-      // Re-init after switch
-      provider = new ethers.BrowserProvider(window.ethereum);
+
+      // Re-create provider/signer after switching networks
+      provider = new ethers.BrowserProvider(activeProvider);
       signer = await provider.getSigner();
     }
 
@@ -112,25 +247,31 @@ async function connectWallet() {
   }
 }
 
-// ── Switch to Arc Testnet ──
+
+// ============================================
+// SECTION 6: Switch to (or add) Arc Testnet
+// ============================================
 async function switchToArc() {
   try {
-    await window.ethereum.request({
+    await activeProvider.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: ARC_CHAIN_HEX }],
     });
   } catch (e) {
+    // 4902 = wallet doesn't know this network yet, so add it
     if (e.code === 4902) {
-      await window.ethereum.request({
+      await activeProvider.request({
         method: 'wallet_addEthereumChain',
         params: [{
           chainId: ARC_CHAIN_HEX,
           chainName: 'Arc Testnet',
           rpcUrls: [ARC_RPC],
           nativeCurrency: {
+            // Arc's native gas token is USDC itself, which has 6 decimals
+            // (not the usual 18 you'd see on most EVM chains)
             name: 'USDC',
             symbol: 'USDC',
-            decimals: 18,
+            decimals: 6,
           },
           blockExplorerUrls: [ARC_EXPLORER],
         }],
@@ -141,7 +282,10 @@ async function switchToArc() {
   }
 }
 
-// ── Generate AI Memo ──
+
+// ============================================
+// SECTION 7: Generate AI Memo
+// ============================================
 async function generateMemo() {
   const address = document.getElementById('toAddr').value.trim();
   const amount = document.getElementById('amount').value.trim();
@@ -177,7 +321,7 @@ async function generateMemo() {
     const data = await res.json();
 
     if (data.memo) {
-      // Build structured memo using REAL wallet data + AI-polished reason
+      // Build a structured memo using real wallet data + AI-polished reason
       const now = new Date();
 
       const dateStr = String(now.getDate()).padStart(2, '0') + '-' +
@@ -213,7 +357,10 @@ async function generateMemo() {
   }
 }
 
-// ── Estimate safe gas limit based on memo size ──
+
+// ============================================
+// SECTION 8: Gas estimate helper
+// ============================================
 function estimateGasForMemo(memoHex) {
   // Remove '0x' prefix, get byte length
   const byteLength = (memoHex.length - 2) / 2;
@@ -225,6 +372,11 @@ function estimateGasForMemo(memoHex) {
 
   return base + extra;
 }
+
+
+// ============================================
+// SECTION 9: Invoice reference generator
+// ============================================
 function getNextInvoiceRef() {
   const year = new Date().getFullYear();
   const key = `momoai_invoice_counter_${year}`;
@@ -233,7 +385,11 @@ function getNextInvoiceRef() {
   const padded = String(count).padStart(4, '0');
   return `momoai-${year}-${padded}`;
 }
-// ── Send Payment (via Arc Memo contract) ──
+
+
+// ============================================
+// SECTION 10: Send Payment (via Arc Memo contract)
+// ============================================
 async function sendPayment() {
   if (!signer) {
     showStatus('Connect your wallet first.', 'err');
@@ -244,7 +400,7 @@ async function sendPayment() {
   const amountStr = document.getElementById('amount').value.trim();
   const memo = document.getElementById('memo').value.trim();
 
-  // Validate
+  // Validate inputs
   if (!ethers.isAddress(to)) {
     showStatus('Invalid recipient address.', 'err');
     return;
@@ -304,27 +460,28 @@ async function sendPayment() {
     if (receipt.status !== 1) {
       throw new Error('Transaction reverted on-chain.');
     }
-// Verify the Memo event was actually emitted with the right data
-const memoTopic = memoInterface.getEvent('Memo')?.topicHash;
-const memoEvents = [];
-for (const log of receipt.logs) {
-  if (log.address.toLowerCase() !== MEMO_CONTRACT_ADDRESS.toLowerCase()) continue;
-  const parsed = memoInterface.parseLog(log);
-  if (parsed?.name === 'Memo') memoEvents.push(parsed);
-}
 
-if (memoEvents.length !== 1) {
-  throw new Error('Memo event missing or duplicated — payment not verified.');
-}
+    // Verify the Memo event was actually emitted with the right data
+    const memoEvents = [];
+    for (const log of receipt.logs) {
+      if (log.address.toLowerCase() !== MEMO_CONTRACT_ADDRESS.toLowerCase()) continue;
+      const parsed = memoInterface.parseLog(log);
+      if (parsed?.name === 'Memo') memoEvents.push(parsed);
+    }
 
-const memoArgs = memoEvents[0].args;
-if (
-  memoArgs.sender.toLowerCase() !== walletAddress.toLowerCase() ||
-  memoArgs.target.toLowerCase() !== USDC_TOKEN_ADDRESS.toLowerCase() ||
-  memoArgs.memoId !== memoId
-) {
-  throw new Error('Memo event data does not match the submitted transaction.');
-}
+    if (memoEvents.length !== 1) {
+      throw new Error('Memo event missing or duplicated — payment not verified.');
+    }
+
+    const memoArgs = memoEvents[0].args;
+    if (
+      memoArgs.sender.toLowerCase() !== walletAddress.toLowerCase() ||
+      memoArgs.target.toLowerCase() !== USDC_TOKEN_ADDRESS.toLowerCase() ||
+      memoArgs.memoId !== memoId
+    ) {
+      throw new Error('Memo event data does not match the submitted transaction.');
+    }
+
     showStatus(
       `Confirmed! <a class="tx-link" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 16)}…</a>`,
       'ok'
@@ -356,7 +513,10 @@ if (
   }
 }
 
-// ── History ──
+
+// ============================================
+// SECTION 11: Payment History (stored locally)
+// ============================================
 function loadHistory() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
@@ -405,7 +565,10 @@ function renderHistory() {
   `).join('');
 }
 
-// ── Status Toast ──
+
+// ============================================
+// SECTION 12: Status Toast
+// ============================================
 function showStatus(msg, type = 'info') {
   const el = document.getElementById('status');
   if (!el) return;
@@ -416,9 +579,17 @@ function showStatus(msg, type = 'info') {
   }
 }
 
-// ── Wallet event listeners ──
-if (typeof window.ethereum !== 'undefined') {
-  window.ethereum.on('accountsChanged', function (accounts) {
+
+// ============================================
+// SECTION 13: Wallet event listeners
+// ============================================
+// Called from setupWallet() so it always attaches to the wallet
+// the user actually picked — not just whichever one had grabbed
+// window.ethereum first.
+function attachWalletEventListeners() {
+  if (!activeProvider || typeof activeProvider.on !== 'function') return;
+
+  activeProvider.on('accountsChanged', function (accounts) {
     if (accounts.length === 0) {
       walletAddress = null;
       signer = null;
@@ -432,10 +603,15 @@ if (typeof window.ethereum !== 'undefined') {
     }
   });
 
-  window.ethereum.on('chainChanged', function () {
+  activeProvider.on('chainChanged', function () {
     location.reload();
   });
-    }
+}
+
+
+// ============================================
+// SECTION 14: Recurring Payments
+// ============================================
 async function createRecurring() {
   const to = document.getElementById('recurTo').value.trim();
   const amount = document.getElementById('recurAmount').value.trim();
@@ -522,7 +698,7 @@ async function loadRecurringOrders() {
 async function cancelRecurring(id) {
   if (!confirm('Cancel this recurring payment?')) return;
   try {
-await fetch('/api/recurring-cancel', {
+    await fetch('/api/recurring-cancel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, walletAddress }),
@@ -532,6 +708,11 @@ await fetch('/api/recurring-cancel', {
     showStatus('Failed to cancel.', 'err');
   }
 }
+
+
+// ============================================
+// SECTION 15: Tabs
+// ============================================
 function switchTab(tab) {
   document.getElementById('historyPanel').classList.toggle('active', tab === 'history');
   document.getElementById('recurringPanel').classList.toggle('active', tab === 'recurring');
@@ -540,6 +721,11 @@ function switchTab(tab) {
   document.getElementById('tabRecurringBtn').classList.toggle('active', tab === 'recurring');
   document.getElementById('tabLookupBtn').classList.toggle('active', tab === 'lookup');
 }
+
+
+// ============================================
+// SECTION 16: Look up a payment by invoice ref
+// ============================================
 async function lookupPayment() {
   const ref = document.getElementById('lookupRef').value.trim();
   const resultBox = document.getElementById('lookupResult');

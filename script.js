@@ -1,34 +1,26 @@
 // ============================================
-// momoAI — AI-Powered USDC Payments on Arc Testnet
-// ============================================
-// This file handles:
-//  1. Connecting to a wallet (with a picker if more than one is installed)
-//  2. Generating an AI-written payment memo
-//  3. Sending a USDC payment through Arc's Memo contract
-//  4. Showing payment history
-//  5. Recurring payments
-//  6. Looking up a payment by invoice reference
+// momoAI - USDC Payments on Arc Testnet
 // ============================================
 
-const STORAGE_KEY = 'momoAI_history';
+var STORAGE_KEY = 'momoAI_history';
 
-// NOTE: ARC_CHAIN_ID, ARC_CHAIN_HEX, ARC_RPC, ARC_EXPLORER must already be
-// defined somewhere before this script runs (e.g. in your HTML <script> tag).
+// These are expected to already exist from your HTML file:
+// ARC_CHAIN_ID, ARC_CHAIN_HEX, ARC_RPC, ARC_EXPLORER
 
-// ── Global app state ──
-let provider = null;        // ethers.js provider (wraps the wallet the user picked)
-let signer = null;          // ethers.js signer (used to sign & send transactions)
-let walletAddress = null;   // the connected wallet's address
+// App state - things we need to remember while the page is open
+var provider = null;       // talks to the blockchain
+var signer = null;         // lets us send transactions
+var walletAddress = null;  // the connected wallet address
 
-// ── Wallet discovery state ──
-let discoveredProviders = []; // every wallet that has announced itself via EIP-6963
-let activeProvider = null;    // the raw EIP-1193 provider the user picked
+// Wallet picker state
+var foundWallets = [];     // list of wallets installed in the browser
+var activeWallet = null;   // the wallet the user picked
 
-// ── Arc Memo contract constants ──
-const MEMO_CONTRACT_ADDRESS = '0x5294E9927c3306DcBaDb03fe70b92e01cCede505';
-const USDC_TOKEN_ADDRESS = '0x3600000000000000000000000000000000000000';
+// Arc Memo contract info
+var MEMO_CONTRACT_ADDRESS = '0x5294E9927c3306DcBaDb03fe70b92e01cCede505';
+var USDC_TOKEN_ADDRESS = '0x3600000000000000000000000000000000000000';
 
-const MEMO_ABI = [
+var MEMO_ABI = [
   {
     "type": "function",
     "name": "memo",
@@ -56,93 +48,92 @@ const MEMO_ABI = [
   }
 ];
 
-const ERC20_ABI = [
+var ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)"
 ];
 
 
 // ============================================
-// SECTION 1: Wallet Discovery (EIP-6963)
+// PART 1: Find installed wallets
 // ============================================
-// Modern wallets "announce" themselves when the page asks them to.
-// This lets us list every wallet installed (Rabby, MetaMask, etc.)
-// instead of blindly grabbing whichever one wins window.ethereum.
+window.addEventListener('eip6963:announceProvider', function (event) {
+  var walletInfo = event.detail.info;
+  var walletProvider = event.detail.provider;
 
-window.addEventListener('eip6963:announceProvider', (event) => {
-  const { info, provider: walletProvider } = event.detail;
-  const alreadyKnown = discoveredProviders.some(p => p.info.uuid === info.uuid);
-  if (!alreadyKnown) {
-    discoveredProviders.push({ info, provider: walletProvider });
+  var alreadyFound = false;
+  for (var i = 0; i < foundWallets.length; i++) {
+    if (foundWallets[i].info.uuid === walletInfo.uuid) {
+      alreadyFound = true;
+    }
+  }
+
+  if (!alreadyFound) {
+    foundWallets.push({ info: walletInfo, provider: walletProvider });
   }
 });
 
-// Ask all installed wallets to announce themselves
 window.dispatchEvent(new Event('eip6963:requestProvider'));
 
 
 // ============================================
-// SECTION 2: Let the user pick a wallet
+// PART 2: Ask the user which wallet to use
 // ============================================
 function pickWallet() {
-  return new Promise((resolve) => {
-    // Give wallets a moment to announce themselves
-    setTimeout(() => {
+  return new Promise(function (resolve) {
 
-      // No EIP-6963 wallets found — fall back to legacy window.ethereum
-      if (discoveredProviders.length === 0) {
+    setTimeout(function () {
+
+      if (foundWallets.length === 0) {
         if (typeof window.ethereum !== 'undefined') {
           resolve(window.ethereum);
         } else {
-          resolve(null); // no wallet installed at all
+          resolve(null);
         }
         return;
       }
 
-      // Exactly one wallet — just use it, no need to ask
-      if (discoveredProviders.length === 1) {
-        resolve(discoveredProviders[0].provider);
+      if (foundWallets.length === 1) {
+        resolve(foundWallets[0].provider);
         return;
       }
 
-      // Multiple wallets — show a simple popup so the user can choose
-      const overlay = document.createElement('div');
-      overlay.style.cssText =
-        'position:fixed;inset:0;background:rgba(0,0,0,0.6);' +
-        'display:flex;align-items:center;justify-content:center;z-index:9999;';
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
 
-      const box = document.createElement('div');
-      box.style.cssText =
-        'background:#1a1a1a;border-radius:12px;padding:20px;min-width:240px;';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:#1a1a1a;border-radius:12px;padding:20px;min-width:240px;';
 
-      const title = document.createElement('div');
+      var title = document.createElement('div');
       title.textContent = 'Choose a wallet';
       title.style.cssText = 'color:#fff;margin-bottom:12px;font-weight:600;';
       box.appendChild(title);
 
-      discoveredProviders.forEach(({ info, provider: walletProvider }) => {
-        const btn = document.createElement('button');
-        btn.style.cssText =
-          'display:flex;align-items:center;gap:10px;width:100%;' +
-          'padding:10px;margin-bottom:8px;background:#2a2a2a;' +
-          'border:none;border-radius:8px;color:#fff;cursor:pointer;';
+      for (var i = 0; i < foundWallets.length; i++) {
+        var walletInfo = foundWallets[i].info;
+        var walletProvider = foundWallets[i].provider;
 
-        const icon = document.createElement('img');
-        icon.src = info.icon;
+        var btn = document.createElement('button');
+        btn.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;padding:10px;margin-bottom:8px;background:#2a2a2a;border:none;border-radius:8px;color:#fff;cursor:pointer;';
+
+        var icon = document.createElement('img');
+        icon.src = walletInfo.icon;
         icon.style.cssText = 'width:24px;height:24px;border-radius:6px;';
 
-        const label = document.createElement('span');
-        label.textContent = info.name;
+        var label = document.createElement('span');
+        label.textContent = walletInfo.name;
 
         btn.appendChild(icon);
         btn.appendChild(label);
 
-        btn.onclick = () => {
-          document.body.removeChild(overlay);
-          resolve(walletProvider);
-        };
+        (function (chosenProvider) {
+          btn.onclick = function () {
+            document.body.removeChild(overlay);
+            resolve(chosenProvider);
+          };
+        })(walletProvider);
 
         box.appendChild(btn);
-      });
+      }
 
       overlay.appendChild(box);
       document.body.appendChild(overlay);
@@ -153,68 +144,62 @@ function pickWallet() {
 
 
 // ============================================
-// SECTION 3: Init on page load
+// PART 3: Run this when the page loads
 // ============================================
 window.addEventListener('load', function () {
   renderHistory();
 
-  // If a wallet was already connected last time, try to reconnect quietly
-  setTimeout(async function () {
-    const chosenProvider = await pickWallet();
-    if (!chosenProvider) return;
+  setTimeout(function () {
+    pickWallet().then(function (chosenWallet) {
+      if (!chosenWallet) return;
 
-    try {
-      // eth_accounts (not eth_requestAccounts) won't pop up a permission prompt —
-      // it only returns accounts the user already approved before
-      const accounts = await chosenProvider.request({ method: 'eth_accounts' });
-      if (accounts && accounts.length > 0) {
-        activeProvider = chosenProvider;
-        await setupWallet(accounts[0]);
-      }
-    } catch (e) {
-      console.log('Auto-connect skipped');
-    }
+      chosenWallet.request({ method: 'eth_accounts' }).then(function (accounts) {
+        if (accounts && accounts.length > 0) {
+          activeWallet = chosenWallet;
+          setupWallet(accounts[0]);
+        }
+      }).catch(function () {
+        console.log('Auto-connect skipped');
+      });
+    });
   }, 500);
 });
 
 
 // ============================================
-// SECTION 4: Set up wallet after getting an account
+// PART 4: Save wallet info after connecting
 // ============================================
 async function setupWallet(account) {
   walletAddress = account;
-  provider = new ethers.BrowserProvider(activeProvider);
+  provider = new ethers.BrowserProvider(activeWallet);
   signer = await provider.getSigner();
 
-  const btn = document.getElementById('walletBtn');
+  var btn = document.getElementById('walletBtn');
   btn.textContent = account.slice(0, 6) + '…' + account.slice(-4);
   btn.classList.add('connected');
 
   loadRecurringOrders();
-  attachWalletEventListeners(); // always points at the wallet the user picked
+  listenForWalletChanges();
 }
 
 
 // ============================================
-// SECTION 5: Connect Wallet (button click)
+// PART 5: Connect Wallet button
 // ============================================
 async function connectWallet() {
-  const chosenProvider = await pickWallet();
+  var chosenWallet = await pickWallet();
 
-  if (!chosenProvider) {
+  if (!chosenWallet) {
     showStatus('No wallet detected. Open inside Rabby or MetaMask browser.', 'err');
     return;
   }
 
-  activeProvider = chosenProvider;
+  activeWallet = chosenWallet;
 
   try {
     showStatus('Connecting…', 'info');
 
-    // Ask the chosen wallet for permission to see the account
-    const accounts = await activeProvider.request({
-      method: 'eth_requestAccounts',
-    });
+    var accounts = await activeWallet.request({ method: 'eth_requestAccounts' });
 
     if (!accounts || accounts.length === 0) {
       showStatus('No accounts found. Unlock your wallet.', 'err');
@@ -223,16 +208,13 @@ async function connectWallet() {
 
     await setupWallet(accounts[0]);
 
-    // Make sure the wallet is on Arc Testnet
-    const chainIdHex = await activeProvider.request({ method: 'eth_chainId' });
-    const chainIdNum = parseInt(chainIdHex, 16);
+    var chainIdHex = await activeWallet.request({ method: 'eth_chainId' });
+    var chainIdNum = parseInt(chainIdHex, 16);
 
     if (chainIdNum !== ARC_CHAIN_ID) {
       showStatus('Switching to Arc Testnet…', 'info');
       await switchToArc();
-
-      // Re-create provider/signer after switching networks
-      provider = new ethers.BrowserProvider(activeProvider);
+      provider = new ethers.BrowserProvider(activeWallet);
       signer = await provider.getSigner();
     }
 
@@ -249,26 +231,23 @@ async function connectWallet() {
 
 
 // ============================================
-// SECTION 6: Switch to (or add) Arc Testnet
+// PART 6: Switch to (or add) Arc Testnet
 // ============================================
 async function switchToArc() {
   try {
-    await activeProvider.request({
+    await activeWallet.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: ARC_CHAIN_HEX }],
     });
   } catch (e) {
-    // 4902 = wallet doesn't know this network yet, so add it
     if (e.code === 4902) {
-      await activeProvider.request({
+      await activeWallet.request({
         method: 'wallet_addEthereumChain',
         params: [{
           chainId: ARC_CHAIN_HEX,
           chainName: 'Arc Testnet',
           rpcUrls: [ARC_RPC],
           nativeCurrency: {
-            // Arc's native gas token is USDC itself, which has 6 decimals
-            // (not the usual 18 you'd see on most EVM chains)
             name: 'USDC',
             symbol: 'USDC',
             decimals: 6,
@@ -284,64 +263,62 @@ async function switchToArc() {
 
 
 // ============================================
-// SECTION 7: Generate AI Memo
+// PART 7: Generate AI memo
 // ============================================
 async function generateMemo() {
-  const address = document.getElementById('toAddr').value.trim();
-  const amount = document.getElementById('amount').value.trim();
-  const description = document.getElementById('description').value.trim();
+  var address = document.getElementById('toAddr').value.trim();
+  var amount = document.getElementById('amount').value.trim();
+  var description = document.getElementById('description').value.trim();
 
   if (!description) {
     showStatus('Enter a description first.', 'err');
     return;
   }
-
   if (!walletAddress) {
     showStatus('Connect your wallet first.', 'err');
     return;
   }
 
-  const btn = document.getElementById('generateBtn');
-  const thinking = document.getElementById('aiThinking');
+  var btn = document.getElementById('generateBtn');
+  var thinking = document.getElementById('aiThinking');
   btn.disabled = true;
   thinking.classList.add('visible');
 
   try {
-    const res = await fetch('/api/generate-memo', {
+    var res = await fetch('/api/generate-memo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ address, amount, description }),
+      body: JSON.stringify({ address: address, amount: amount, description: description }),
     });
 
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error('Server error: ' + text);
+      var errText = await res.text();
+      throw new Error('Server error: ' + errText);
     }
 
-    const data = await res.json();
+    var data = await res.json();
 
     if (data.memo) {
-      // Build a structured memo using real wallet data + AI-polished reason
-      const now = new Date();
+      var now = new Date();
 
-      const dateStr = String(now.getDate()).padStart(2, '0') + '-' +
-                       String(now.getMonth() + 1).padStart(2, '0') + '-' +
-                       now.getFullYear();
+      var dateStr = String(now.getDate()).padStart(2, '0') + '-' +
+                    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                    now.getFullYear();
 
-      let hours = now.getHours();
-      const ampm = hours >= 12 ? 'PM' : 'AM';
+      var hours = now.getHours();
+      var ampm = hours >= 12 ? 'PM' : 'AM';
       hours = hours % 12;
       if (hours === 0) hours = 12;
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const timeStr = `${hours}:${minutes}${ampm}`;
+      var minutes = String(now.getMinutes()).padStart(2, '0');
+      var timeStr = hours + ':' + minutes + ampm;
 
-      const structuredMemo =
-        `From: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}\n` +
-        `To: ${address.slice(0, 6)}...${address.slice(-4)}\n` +
-        `Amount: ${amount}\n` +
-        `Payment for: ${data.memo}\n` +
-        `Date: ${dateStr}\n` +
-        `Time: ${timeStr}`;
+      var structuredMemo =
+        'From: ' + walletAddress.slice(0, 6) + '...' + walletAddress.slice(-4) + '\n' +
+        'To: ' + address.slice(0, 6) + '...' + address.slice(-4) + '\n' +
+        'Amount: ' + amount + '\n' +
+        'Payment for: ' + data.memo + '\n' +
+        'Date: ' + dateStr + '\n' +
+        'Time: ' + timeStr;
 
       document.getElementById('memo').value = structuredMemo;
       showStatus('Memo generated ✓', 'ok');
@@ -359,36 +336,32 @@ async function generateMemo() {
 
 
 // ============================================
-// SECTION 8: Gas estimate helper
+// PART 8: Gas estimate helper
 // ============================================
 function estimateGasForMemo(memoHex) {
-  // Remove '0x' prefix, get byte length
-  const byteLength = (memoHex.length - 2) / 2;
-
-  // Base transfer cost + buffer per byte of calldata + safety margin
-  const base = 100000n;
-  const perByte = 40n; // generous buffer per byte
-  const extra = BigInt(byteLength) * perByte;
-
+  var byteLength = (memoHex.length - 2) / 2;
+  var base = 100000n;
+  var perByte = 40n;
+  var extra = BigInt(byteLength) * perByte;
   return base + extra;
 }
 
 
 // ============================================
-// SECTION 9: Invoice reference generator
+// PART 9: Invoice reference number
 // ============================================
 function getNextInvoiceRef() {
-  const year = new Date().getFullYear();
-  const key = `momoai_invoice_counter_${year}`;
-  let count = parseInt(localStorage.getItem(key) || '0', 10) + 1;
+  var year = new Date().getFullYear();
+  var key = 'momoai_invoice_counter_' + year;
+  var count = parseInt(localStorage.getItem(key) || '0', 10) + 1;
   localStorage.setItem(key, String(count));
-  const padded = String(count).padStart(4, '0');
-  return `momoai-${year}-${padded}`;
+  var padded = String(count).padStart(4, '0');
+  return 'momoai-' + year + '-' + padded;
 }
 
 
 // ============================================
-// SECTION 10: Send Payment (via Arc Memo contract)
+// PART 10: Send Payment
 // ============================================
 async function sendPayment() {
   if (!signer) {
@@ -396,11 +369,10 @@ async function sendPayment() {
     return;
   }
 
-  const to = document.getElementById('toAddr').value.trim();
-  const amountStr = document.getElementById('amount').value.trim();
-  const memo = document.getElementById('memo').value.trim();
+  var to = document.getElementById('toAddr').value.trim();
+  var amountStr = document.getElementById('amount').value.trim();
+  var memo = document.getElementById('memo').value.trim();
 
-  // Validate inputs
   if (!ethers.isAddress(to)) {
     showStatus('Invalid recipient address.', 'err');
     return;
@@ -412,68 +384,61 @@ async function sendPayment() {
   if (!memo) {
     showStatus('Please generate a memo first.', 'err');
     document.getElementById('generateBtn').style.boxShadow = '0 0 0 3px rgba(255,95,126,0.4)';
-    setTimeout(() => {
+    setTimeout(function () {
       document.getElementById('generateBtn').style.boxShadow = '';
     }, 2000);
     return;
   }
 
-  const sendBtn = document.getElementById('sendBtn');
+  var sendBtn = document.getElementById('sendBtn');
   sendBtn.disabled = true;
   sendBtn.textContent = 'Sending…';
   showStatus('Confirm in your wallet…', 'info');
 
   try {
-    // USDC = 6 decimals (ERC-20 token on Arc)
-    const amountUnits = ethers.parseUnits(amountStr, 6);
+    var amountUnits = ethers.parseUnits(amountStr, 6); // USDC has 6 decimals
 
-    // Build interfaces
-    const erc20Interface = new ethers.Interface(ERC20_ABI);
-    const memoInterface = new ethers.Interface(MEMO_ABI);
+    var erc20Interface = new ethers.Interface(ERC20_ABI);
+    var memoInterface = new ethers.Interface(MEMO_ABI);
 
-    // Encode the inner USDC transfer call
-    const transferData = erc20Interface.encodeFunctionData('transfer', [to, amountUnits]);
+    var transferData = erc20Interface.encodeFunctionData('transfer', [to, amountUnits]);
 
-    // Sequential, human-readable invoice ID (e.g. momoai-2026-0001)
-    const uniqueRef = getNextInvoiceRef();
-    const memoId = ethers.id(uniqueRef);
+    var uniqueRef = getNextInvoiceRef();
+    var memoId = ethers.id(uniqueRef);
+    var memoBytes = ethers.toUtf8Bytes(memo);
 
-    // Memo text as bytes
-    const memoBytes = ethers.toUtf8Bytes(memo);
-
-    // Encode the outer call to the Memo contract
-    const memoCallData = memoInterface.encodeFunctionData('memo', [
+    var memoCallData = memoInterface.encodeFunctionData('memo', [
       USDC_TOKEN_ADDRESS,
       transferData,
       memoId,
       memoBytes,
     ]);
 
-    const tx = await signer.sendTransaction({
+    var tx = await signer.sendTransaction({
       to: MEMO_CONTRACT_ADDRESS,
       data: memoCallData,
     });
 
     showStatus('Submitted. Waiting for confirmation…', 'info');
-    const receipt = await tx.wait();
+    var receipt = await tx.wait();
 
     if (receipt.status !== 1) {
       throw new Error('Transaction reverted on-chain.');
     }
 
-    // Verify the Memo event was actually emitted with the right data
-    const memoEvents = [];
-    for (const log of receipt.logs) {
+    var memoEvents = [];
+    for (var i = 0; i < receipt.logs.length; i++) {
+      var log = receipt.logs[i];
       if (log.address.toLowerCase() !== MEMO_CONTRACT_ADDRESS.toLowerCase()) continue;
-      const parsed = memoInterface.parseLog(log);
-      if (parsed?.name === 'Memo') memoEvents.push(parsed);
+      var parsed = memoInterface.parseLog(log);
+      if (parsed && parsed.name === 'Memo') memoEvents.push(parsed);
     }
 
     if (memoEvents.length !== 1) {
       throw new Error('Memo event missing or duplicated — payment not verified.');
     }
 
-    const memoArgs = memoEvents[0].args;
+    var memoArgs = memoEvents[0].args;
     if (
       memoArgs.sender.toLowerCase() !== walletAddress.toLowerCase() ||
       memoArgs.target.toLowerCase() !== USDC_TOKEN_ADDRESS.toLowerCase() ||
@@ -483,19 +448,19 @@ async function sendPayment() {
     }
 
     showStatus(
-      `Confirmed! <a class="tx-link" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 16)}…</a>`,
+      'Confirmed! <a class="tx-link" href="' + ARC_EXPLORER + '/tx/' + tx.hash + '" target="_blank">' + tx.hash.slice(0, 16) + '…</a>',
       'ok'
     );
 
     saveHistory({
-      to,
+      to: to,
       amount: amountStr,
-      memo,
+      memo: memo,
       hash: tx.hash,
+      ref: uniqueRef,
       time: Date.now(),
     });
 
-    // Clear form
     document.getElementById('toAddr').value = '';
     document.getElementById('amount').value = '';
     document.getElementById('description').value = '';
@@ -515,18 +480,18 @@ async function sendPayment() {
 
 
 // ============================================
-// SECTION 11: Payment History (stored locally)
+// PART 11: Payment History
 // ============================================
 function loadHistory() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch {
+  } catch (e) {
     return [];
   }
 }
 
 function saveHistory(entry) {
-  const history = loadHistory();
+  var history = loadHistory();
   history.unshift(entry);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 50)));
   renderHistory();
@@ -539,62 +504,62 @@ function clearHistory() {
 }
 
 function renderHistory() {
-  const list = document.getElementById('historyList');
+  var list = document.getElementById('historyList');
   if (!list) return;
-  const history = loadHistory();
+  var history = loadHistory();
 
-  if (!history.length) {
+  if (history.length === 0) {
     list.innerHTML = '<div class="history-empty">No payments yet. Send your first one above.</div>';
     return;
   }
 
-  list.innerHTML = history.map(tx => `
-    <div class="tx-item">
-      <div class="tx-row">
-        <span class="tx-addr">${tx.to.slice(0, 8)}…${tx.to.slice(-6)}</span>
-        <span class="tx-amount">${parseFloat(tx.amount).toLocaleString()} USDC</span>
-      </div>
-      ${tx.memo ? `<div class="tx-memo">${tx.memo}</div>` : ''}
-      <div class="tx-meta">
-        <span class="tx-time">${new Date(tx.time).toLocaleString()}</span>
-        <a class="tx-hash" href="${ARC_EXPLORER}/tx/${tx.hash}" target="_blank">
-          ${tx.hash.slice(0, 10)}…
-        </a>
-      </div>
-    </div>
-  `).join('');
+  var html = '';
+  for (var i = 0; i < history.length; i++) {
+    var tx = history[i];
+    html += '<div class="tx-item">' +
+      '<div class="tx-row">' +
+        '<span class="tx-addr">' + tx.to.slice(0, 8) + '…' + tx.to.slice(-6) + '</span>' +
+        '<span class="tx-amount">' + parseFloat(tx.amount).toLocaleString() + ' USDC</span>' +
+      '</div>' +
+      (tx.memo ? '<div class="tx-memo">' + tx.memo + '</div>' : '') +
+      (tx.ref ? '<div class="tx-ref">Invoice: ' + tx.ref + '</div>' : '') +
+      '<div class="tx-meta">' +
+        '<span class="tx-time">' + new Date(tx.time).toLocaleString() + '</span>' +
+        '<a class="tx-hash" href="' + ARC_EXPLORER + '/tx/' + tx.hash + '" target="_blank">' + tx.hash.slice(0, 10) + '…</a>' +
+      '</div>' +
+    '</div>';
+  }
+  list.innerHTML = html;
 }
 
 
 // ============================================
-// SECTION 12: Status Toast
+// PART 12: Status message popup
 // ============================================
-function showStatus(msg, type = 'info') {
-  const el = document.getElementById('status');
+function showStatus(msg, type) {
+  if (!type) type = 'info';
+  var el = document.getElementById('status');
   if (!el) return;
   el.innerHTML = msg;
-  el.className = `show ${type}`;
+  el.className = 'show ' + type;
   if (type === 'ok') {
-    setTimeout(() => el.classList.remove('show'), 8000);
+    setTimeout(function () { el.classList.remove('show'); }, 8000);
   }
 }
 
 
 // ============================================
-// SECTION 13: Wallet event listeners
+// PART 13: Listen for wallet changes
 // ============================================
-// Called from setupWallet() so it always attaches to the wallet
-// the user actually picked — not just whichever one had grabbed
-// window.ethereum first.
-function attachWalletEventListeners() {
-  if (!activeProvider || typeof activeProvider.on !== 'function') return;
+function listenForWalletChanges() {
+  if (!activeWallet || typeof activeWallet.on !== 'function') return;
 
-  activeProvider.on('accountsChanged', function (accounts) {
+  activeWallet.on('accountsChanged', function (accounts) {
     if (accounts.length === 0) {
       walletAddress = null;
       signer = null;
       provider = null;
-      const btn = document.getElementById('walletBtn');
+      var btn = document.getElementById('walletBtn');
       btn.textContent = 'Connect Wallet';
       btn.classList.remove('connected');
       showStatus('Wallet disconnected.', 'info');
@@ -603,20 +568,20 @@ function attachWalletEventListeners() {
     }
   });
 
-  activeProvider.on('chainChanged', function () {
+  activeWallet.on('chainChanged', function () {
     location.reload();
   });
 }
 
 
 // ============================================
-// SECTION 14: Recurring Payments
+// PART 14: Recurring Payments
 // ============================================
 async function createRecurring() {
-  const to = document.getElementById('recurTo').value.trim();
-  const amount = document.getElementById('recurAmount').value.trim();
-  const description = document.getElementById('recurDescription').value.trim();
-  const intervalDays = document.getElementById('recurInterval').value.trim();
+  var to = document.getElementById('recurTo').value.trim();
+  var amount = document.getElementById('recurAmount').value.trim();
+  var description = document.getElementById('recurDescription').value.trim();
+  var intervalDays = document.getElementById('recurInterval').value.trim();
 
   if (!walletAddress) {
     showStatus('Connect your wallet first.', 'err');
@@ -640,12 +605,12 @@ async function createRecurring() {
   }
 
   try {
-    const res = await fetch('/api/recurring-create', {
+    var res = await fetch('/api/recurring-create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, amount, description, intervalDays, walletAddress }),
+      body: JSON.stringify({ to: to, amount: amount, description: description, intervalDays: intervalDays, walletAddress: walletAddress }),
     });
-    const data = await res.json();
+    var data = await res.json();
 
     if (data.success) {
       showStatus('Recurring payment created ✓', 'ok');
@@ -663,33 +628,36 @@ async function createRecurring() {
 }
 
 async function loadRecurringOrders() {
-  const list = document.getElementById('recurringList');
+  var list = document.getElementById('recurringList');
   if (!list) return;
 
   try {
     if (!walletAddress) return;
-    const res = await fetch('/api/recurring-create?address=' + walletAddress);
-    const data = await res.json();
-    const orders = data.orders || [];
+    var res = await fetch('/api/recurring-create?address=' + walletAddress);
+    var data = await res.json();
+    var orders = data.orders || [];
 
-    if (!orders.length) {
+    if (orders.length === 0) {
       list.innerHTML = '<div class="history-empty">No recurring payments set up.</div>';
       return;
     }
 
-    list.innerHTML = orders.map(o => `
-      <div class="tx-item">
-        <div class="tx-row">
-          <span class="tx-addr">${o.to.slice(0, 8)}…${o.to.slice(-6)}</span>
-          <span class="tx-amount">${o.amount} USDC / ${o.intervalDays}d</span>
-        </div>
-        <div class="tx-memo">${o.description}</div>
-        <div class="tx-meta">
-          <span class="tx-time">Next: ${new Date(o.nextRunAt).toLocaleString()}</span>
-          <button onclick="cancelRecurring('${o.id}')" style="color:#ff5f7e;background:none;border:none;cursor:pointer;">Cancel</button>
-        </div>
-      </div>
-    `).join('');
+    var html = '';
+    for (var i = 0; i < orders.length; i++) {
+      var o = orders[i];
+      html += '<div class="tx-item">' +
+        '<div class="tx-row">' +
+          '<span class="tx-addr">' + o.to.slice(0, 8) + '…' + o.to.slice(-6) + '</span>' +
+          '<span class="tx-amount">' + o.amount + ' USDC / ' + o.intervalDays + 'd</span>' +
+        '</div>' +
+        '<div class="tx-memo">' + o.description + '</div>' +
+        '<div class="tx-meta">' +
+          '<span class="tx-time">Next: ' + new Date(o.nextRunAt).toLocaleString() + '</span>' +
+          '<button onclick="cancelRecurring(\'' + o.id + '\')" style="color:#ff5f7e;background:none;border:none;cursor:pointer;">Cancel</button>' +
+        '</div>' +
+      '</div>';
+    }
+    list.innerHTML = html;
   } catch (e) {
     list.innerHTML = '<div class="history-empty">Failed to load recurring payments.</div>';
   }
@@ -701,7 +669,7 @@ async function cancelRecurring(id) {
     await fetch('/api/recurring-cancel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, walletAddress }),
+      body: JSON.stringify({ id: id, walletAddress: walletAddress }),
     });
     loadRecurringOrders();
   } catch (e) {
@@ -711,7 +679,7 @@ async function cancelRecurring(id) {
 
 
 // ============================================
-// SECTION 15: Tabs
+// PART 15: Tabs
 // ============================================
 function switchTab(tab) {
   document.getElementById('historyPanel').classList.toggle('active', tab === 'history');
@@ -724,11 +692,11 @@ function switchTab(tab) {
 
 
 // ============================================
-// SECTION 16: Look up a payment by invoice ref
+// PART 16: Look up a payment by invoice ref
 // ============================================
 async function lookupPayment() {
-  const ref = document.getElementById('lookupRef').value.trim();
-  const resultBox = document.getElementById('lookupResult');
+  var ref = document.getElementById('lookupRef').value.trim();
+  var resultBox = document.getElementById('lookupResult');
 
   if (!ref) {
     showStatus('Enter an invoice reference.', 'err');
@@ -738,47 +706,44 @@ async function lookupPayment() {
   resultBox.innerHTML = '<div class="history-empty">Searching on-chain…</div>';
 
   try {
-    const memoId = ethers.id(ref);
-    const readProvider = new ethers.JsonRpcProvider(ARC_RPC);
-    const memoInterface = new ethers.Interface(MEMO_ABI);
-    const memoTopic = memoInterface.getEvent('Memo')?.topicHash;
+    var memoId = ethers.id(ref);
+    var readProvider = new ethers.JsonRpcProvider(ARC_RPC);
+    var memoInterface = new ethers.Interface(MEMO_ABI);
+    var memoTopic = memoInterface.getEvent('Memo').topicHash;
 
-    const logs = await readProvider.getLogs({
+    var logs = await readProvider.getLogs({
       address: MEMO_CONTRACT_ADDRESS,
       topics: [memoTopic, null, null, memoId],
       fromBlock: 0,
       toBlock: 'latest',
     });
 
-    if (!logs.length) {
+    if (logs.length === 0) {
       resultBox.innerHTML = '<div class="history-empty">No payment found for that reference.</div>';
       return;
     }
 
-    const parsed = memoInterface.parseLog(logs[0]);
-    const args = parsed.args;
-    let memoText;
+    var parsed = memoInterface.parseLog(logs[0]);
+    var args = parsed.args;
+    var memoText;
     try {
       memoText = ethers.toUtf8String(args.memo);
-    } catch {
+    } catch (e) {
       memoText = '(binary memo data)';
     }
 
-    resultBox.innerHTML = `
-      <div class="tx-item">
-        <div class="tx-row">
-          <span class="tx-addr">${args.sender.slice(0, 8)}…${args.sender.slice(-6)}</span>
-          <span class="tx-amount">Verified ✓</span>
-        </div>
-        <div class="tx-memo">${memoText.replace(/\n/g, '<br>')}</div>
-        <div class="tx-meta">
-          <span class="tx-time">Ref: ${ref}</span>
-          <a class="tx-hash" href="${ARC_EXPLORER}/tx/${logs[0].transactionHash}" target="_blank">
-            ${logs[0].transactionHash.slice(0, 10)}…
-          </a>
-        </div>
-      </div>
-    `;
+    resultBox.innerHTML =
+      '<div class="tx-item">' +
+        '<div class="tx-row">' +
+          '<span class="tx-addr">' + args.sender.slice(0, 8) + '…' + args.sender.slice(-6) + '</span>' +
+          '<span class="tx-amount">Verified ✓</span>' +
+        '</div>' +
+        '<div class="tx-memo">' + memoText.replace(/\n/g, '<br>') + '</div>' +
+        '<div class="tx-meta">' +
+          '<span class="tx-time">Ref: ' + ref + '</span>' +
+          '<a class="tx-hash" href="' + ARC_EXPLORER + '/tx/' + logs[0].transactionHash + '" target="_blank">' + logs[0].transactionHash.slice(0, 10) + '…</a>' +
+        '</div>' +
+      '</div>';
   } catch (e) {
     resultBox.innerHTML = '<div class="history-empty">Search failed: ' + (e.message || e) + '</div>';
   }

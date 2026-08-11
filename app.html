@@ -22,7 +22,15 @@
   <button class="wallet-pill" id="walletBtn" onclick="connectWallet()">Connect Wallet</button>
   <button class="menu-btn" id="menuBtn" onclick="toggleMenu()">☰</button>
 </header>
-
+<div class="menu-overlay" id="menuOverlay">
+  <div class="menu-overlay-header">
+    <button class="menu-close-btn" onclick="toggleMenu()">✕</button>
+  </div>
+  <div class="menu-page-option" onclick="goToPage('history')">Payment History</div>
+  <div class="menu-page-option" onclick="goToPage('recurring')">Recurring Payments</div>
+  <div class="menu-page-option" onclick="goToPage('lookup')">Look Up</div>
+  <div class="menu-page-option" onclick="goToPage('contacts')">Contacts</div>
+</div>
 <div id="status"></div>
 
 <!-- Payment Form -->

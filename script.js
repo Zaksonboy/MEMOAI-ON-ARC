@@ -683,19 +683,7 @@ async function cancelRecurring(id) {
 // ============================================
 function switchTab(tab) {
   document.getElementById('historyPanel').classList.toggle('active', tab === 'history');
-  document.getElementById('recurringPanel').classList.toggle('active', tab === 'recurring');
-  document.getElementById('lookupPanel').classList.toggle('active', tab === 'lookup');
-  document.getElementById('contactsPanel').classList.toggle('active', tab === 'contacts');
   document.getElementById('tabHistoryBtn').classList.toggle('active', tab === 'history');
-
-  var menuBtn = document.getElementById('menuBtn');
-  if (tab === 'recurring' || tab === 'lookup' || tab === 'contacts') {
-    menuBtn.classList.add('active');
-  } else {
-    menuBtn.classList.remove('active');
-  }
-
-  if (tab === 'contacts') renderContacts();
 }
 
 function toggleMenu() {
@@ -703,10 +691,16 @@ function toggleMenu() {
 }
 
 function goToPage(tab) {
-  switchTab(tab);
   document.getElementById('menuOverlay').classList.remove('show');
+  document.getElementById(tab + 'Panel').classList.add('show');
+  if (tab === 'contacts') renderContacts();
 }
 
+function closeFeaturePage() {
+  document.getElementById('recurringPanel').classList.remove('show');
+  document.getElementById('lookupPanel').classList.remove('show');
+  document.getElementById('contactsPanel').classList.remove('show');
+}
 
 // ============================================
 // PART 16: Look up a payment by invoice ref

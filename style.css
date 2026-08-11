@@ -687,3 +687,60 @@ textarea#memo {
 
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+
+.contact-suggestions {
+  position: relative;
+}
+
+.contact-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 10;
+  display: none;
+}
+.contact-dropdown.show { display: block; }
+
+.contact-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.contact-option:last-child { border-bottom: none; }
+.contact-option:hover { background: var(--surface); }
+.contact-option .c-name { color: var(--text); font-weight: 600; }
+.contact-option .c-addr { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+
+.save-contact-row {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 6px;
+}
+.save-contact-row input {
+  flex: 1;
+}
+.save-contact-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.contact-item {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+.contact-item .c-info { display: flex; flex-direction: column; }

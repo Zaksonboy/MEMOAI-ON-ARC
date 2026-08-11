@@ -72,6 +72,7 @@
   <button class="tab-btn active" id="tabHistoryBtn" onclick="switchTab('history')">Payment History</button>
   <button class="tab-btn" id="tabRecurringBtn" onclick="switchTab('recurring')">Recurring Payments</button>
   <button class="tab-btn" id="tabLookupBtn" onclick="switchTab('lookup')">Look Up</button>
+  <button class="tab-btn" id="tabContactsBtn" onclick="switchTab('contacts')">Contacts</button>
 </div>
 
 <div class="tab-panel active" id="historyPanel">
@@ -130,6 +131,12 @@
     <button class="send-btn" onclick="lookupPayment()">Search On-Chain</button>
 
     <div id="lookupResult" style="margin-top:16px;"></div>
+  </div>
+  </div>
+  <div class="tab-panel" id="contactsPanel">
+  <div class="card">
+    <div class="card-label">Saved Contacts</div>
+    <div id="contactsList"></div>
   </div>
   </div>
 <script>

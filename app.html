@@ -20,6 +20,7 @@
     <span class="logo-sub">USDC Payment Assistant</span>
   </div>
   <button class="wallet-pill" id="walletBtn" onclick="connectWallet()">Connect Wallet</button>
+  <button class="menu-btn" id="menuBtn" onclick="toggleMenu()">☰</button>
 </header>
 
 <div id="status"></div>
@@ -70,15 +71,6 @@
 
 <div class="section-tabs">
   <button class="tab-btn active" id="tabHistoryBtn" onclick="switchTab('history')">Payment History</button>
-</div>
-
-<div class="menu-wrapper">
-  <button class="menu-btn" id="menuBtn" onclick="toggleMenu()">☰ More <span id="menuActiveLabel"></span></button>
-  <div class="menu-dropdown" id="menuDropdown">
-    <div class="menu-option" onclick="switchTab('recurring')">Recurring Payments</div>
-    <div class="menu-option" onclick="switchTab('lookup')">Look Up</div>
-    <div class="menu-option" onclick="switchTab('contacts')">Contacts</div>
-  </div>
 </div>
 
 <div class="tab-panel active" id="historyPanel">

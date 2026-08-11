@@ -28,9 +28,14 @@
 <div class="card">
   <div class="card-label">New Payment</div>
 
-  <div class="field">
+  <div class="field contact-suggestions">
     <label>Recipient Address</label>
-    <input type="text" id="toAddr" class="mono" placeholder="0x..." autocomplete="off" />
+    <input type="text" id="toAddr" class="mono" placeholder="0x... or type a saved name" autocomplete="off" oninput="showContactSuggestions()" />
+    <div class="contact-dropdown" id="contactDropdown"></div>
+    <div class="save-contact-row">
+      <input type="text" id="saveContactName" placeholder="Save as name (optional)" />
+      <button type="button" class="save-contact-btn" onclick="saveContact()">Save Contact</button>
+    </div>
   </div>
 
   <div class="field">

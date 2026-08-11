@@ -689,23 +689,22 @@ function switchTab(tab) {
   document.getElementById('tabHistoryBtn').classList.toggle('active', tab === 'history');
 
   var menuBtn = document.getElementById('menuBtn');
-  var menuLabel = document.getElementById('menuActiveLabel');
   if (tab === 'recurring' || tab === 'lookup' || tab === 'contacts') {
     menuBtn.classList.add('active');
-    var labels = { recurring: '(Recurring)', lookup: '(Look Up)', contacts: '(Contacts)' };
-    menuLabel.textContent = labels[tab];
   } else {
     menuBtn.classList.remove('active');
-    menuLabel.textContent = '';
   }
-
-  document.getElementById('menuDropdown').classList.remove('show');
 
   if (tab === 'contacts') renderContacts();
 }
 
 function toggleMenu() {
-  document.getElementById('menuDropdown').classList.toggle('show');
+  document.getElementById('menuOverlay').classList.toggle('show');
+}
+
+function goToPage(tab) {
+  switchTab(tab);
+  document.getElementById('menuOverlay').classList.remove('show');
 }
 
 

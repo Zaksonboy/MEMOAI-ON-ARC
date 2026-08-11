@@ -751,3 +751,96 @@ async function lookupPayment() {
     resultBox.innerHTML = '<div class="history-empty">Search failed: ' + (e.message || e) + '</div>';
   }
 }
+const CONTACTS_KEY = 'momoAI_contacts';
+
+function loadContacts() {
+  try {
+    return JSON.parse(localStorage.getItem(CONTACTS_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveContact() {
+  const address = document.getElementById('toAddr').value.trim();
+  const name = document.getElementById('saveContactName').value.trim();
+
+  if (!ethers.isAddress(address)) {
+    showStatus('Enter a valid address before saving.', 'err');
+    return;
+  }
+  if (!name) {
+    showStatus('Enter a name to save this contact.', 'err');
+    return;
+  }
+
+  const contacts = loadContacts();
+  const existing = contacts.findIndex(c => c.address.toLowerCase() === address.toLowerCase());
+  if (existing >= 0) {
+    contacts[existing].name = name;
+  } else {
+    contacts.push({ name, address });
+  }
+  localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+  document.getElementById('saveContactName').value = '';
+  showStatus('Contact saved ✓', 'ok');
+}
+
+function deleteContact(address) {
+  if (!confirm('Remove this saved contact?')) return;
+  const contacts = loadContacts().filter(c => c.address.toLowerCase() !== address.toLowerCase());
+  localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+  renderContacts();
+}
+
+function renderContacts() {
+  const list = document.getElementById('contactsList');
+  if (!list) return;
+  const contacts = loadContacts();
+
+  if (!contacts.length) {
+    list.innerHTML = '<div class="history-empty">No saved contacts yet.</div>';
+    return;
+  }
+
+  list.innerHTML = contacts.map(c => `
+    <div class="contact-item">
+      <div class="c-info">
+        <span class="c-name">${c.name}</span>
+        <span class="c-addr">${c.address.slice(0, 8)}…${c.address.slice(-6)}</span>
+      </div>
+      <button onclick="deleteContact('${c.address}')" style="color:#ff5f7e;background:none;border:none;cursor:pointer;">Remove</button>
+    </div>
+  `).join('');
+}
+
+function showContactSuggestions() {
+  const input = document.getElementById('toAddr');
+  const dropdown = document.getElementById('contactDropdown');
+  const query = input.value.trim().toLowerCase();
+
+  if (!query || query.startsWith('0x')) {
+    dropdown.classList.remove('show');
+    return;
+  }
+
+  const contacts = loadContacts().filter(c => c.name.toLowerCase().includes(query));
+
+  if (!contacts.length) {
+    dropdown.classList.remove('show');
+    return;
+  }
+
+  dropdown.innerHTML = contacts.map(c => `
+    <div class="contact-option" onclick="pickContact('${c.address}', '${c.name.replace(/'/g, "\\'")}')">
+      <div class="c-name">${c.name}</div>
+      <div class="c-addr">${c.address}</div>
+    </div>
+  `).join('');
+  dropdown.classList.add('show');
+}
+
+function pickContact(address, name) {
+  document.getElementById('toAddr').value = address;
+  document.getElementById('contactDropdown').classList.remove('show');
+}

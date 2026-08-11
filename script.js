@@ -687,10 +687,25 @@ function switchTab(tab) {
   document.getElementById('lookupPanel').classList.toggle('active', tab === 'lookup');
   document.getElementById('contactsPanel').classList.toggle('active', tab === 'contacts');
   document.getElementById('tabHistoryBtn').classList.toggle('active', tab === 'history');
-  document.getElementById('tabRecurringBtn').classList.toggle('active', tab === 'recurring');
-  document.getElementById('tabLookupBtn').classList.toggle('active', tab === 'lookup');
-  document.getElementById('tabContactsBtn').classList.toggle('active', tab === 'contacts');
+
+  var menuBtn = document.getElementById('menuBtn');
+  var menuLabel = document.getElementById('menuActiveLabel');
+  if (tab === 'recurring' || tab === 'lookup' || tab === 'contacts') {
+    menuBtn.classList.add('active');
+    var labels = { recurring: '(Recurring)', lookup: '(Look Up)', contacts: '(Contacts)' };
+    menuLabel.textContent = labels[tab];
+  } else {
+    menuBtn.classList.remove('active');
+    menuLabel.textContent = '';
+  }
+
+  document.getElementById('menuDropdown').classList.remove('show');
+
   if (tab === 'contacts') renderContacts();
+}
+
+function toggleMenu() {
+  document.getElementById('menuDropdown').classList.toggle('show');
 }
 
 

@@ -93,10 +93,12 @@
   </div>
 </div>
 
-<div class="tab-panel" id="recurringPanel">
+<div class="feature-page" id="recurringPanel">
+  <div class="feature-page-header">
+    <button class="back-btn" onclick="closeFeaturePage()">←</button>
+    <span class="feature-page-title">Recurring Payments</span>
+  </div>
   <div class="card">
-    <div class="card-label">Recurring Payments</div>
-
     <div class="field">
       <label>Recipient Address</label>
       <input type="text" id="recurTo" class="mono" placeholder="0x..." autocomplete="off" />
@@ -125,10 +127,13 @@
     <div id="recurringList" style="margin-top:16px;"></div>
   </div>
 </div>
-  <div class="tab-panel" id="lookupPanel">
-  <div class="card">
-    <div class="card-label">Look Up Payment</div>
 
+<div class="feature-page" id="lookupPanel">
+  <div class="feature-page-header">
+    <button class="back-btn" onclick="closeFeaturePage()">←</button>
+    <span class="feature-page-title">Look Up Payment</span>
+  </div>
+  <div class="card">
     <div class="field">
       <label>Invoice Reference</label>
       <input type="text" id="lookupRef" class="mono" placeholder="e.g. momoai-2026-0001" autocomplete="off" />
@@ -138,13 +143,17 @@
 
     <div id="lookupResult" style="margin-top:16px;"></div>
   </div>
+</div>
+
+<div class="feature-page" id="contactsPanel">
+  <div class="feature-page-header">
+    <button class="back-btn" onclick="closeFeaturePage()">←</button>
+    <span class="feature-page-title">Saved Contacts</span>
   </div>
-  <div class="tab-panel" id="contactsPanel">
   <div class="card">
-    <div class="card-label">Saved Contacts</div>
     <div id="contactsList"></div>
   </div>
-  </div>
+</div>
 <script>
   const ARC_CHAIN_ID = 5042002;
   const ARC_CHAIN_HEX = '0x4CEF52';

@@ -722,10 +722,13 @@ async function lookupPayment() {
     var memoInterface = new ethers.Interface(MEMO_ABI);
     var memoTopic = memoInterface.getEvent('Memo').topicHash;
 
+        var latestBlock = await readProvider.getBlockNumber();
+    var fromBlock = Math.max(0, latestBlock - 99000);
+
     var logs = await readProvider.getLogs({
       address: MEMO_CONTRACT_ADDRESS,
       topics: [memoTopic, null, null, memoId],
-      fromBlock: 0,
+      fromBlock: fromBlock,
       toBlock: 'latest',
     });
 

@@ -844,3 +844,43 @@ textarea#memo {
   font-weight: 700;
   color: var(--text);
 }
+.features-showcase {
+  width: 100%;
+  max-width: 560px;
+  margin-bottom: 16px;
+}
+
+.features-showcase-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.feature-tile {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 10px;
+  text-align: center;
+  cursor: pointer;
+}
+.feature-tile:active { border-color: var(--accent); }
+
+.feature-tile-icon {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.feature-tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}

@@ -590,7 +590,7 @@ function goToPage(tab) {
   if (tab === 'contacts') renderContacts();
 }
 
-function closeFeaturepage() {
+function closeFeaturePage() {
   document.getElementById('lookupPanel').classList.remove('show');
   document.getElementById('contactsPanel').classList.remove('show');
 }

@@ -571,7 +571,7 @@ function listenForWalletChanges() {
   activeWallet.on('chainChanged', function () {
     location.reload();
   });
-  )
+    }
 
 // ============================================
 // PART 15: Tabs

@@ -178,7 +178,6 @@ async function setupWallet(account) {
   btn.textContent = account.slice(0, 6) + '…' + account.slice(-4);
   btn.classList.add('connected');
 
-  loadRecurringOrders();
   listenForWalletChanges();
 }
 
@@ -591,8 +590,7 @@ function goToPage(tab) {
   if (tab === 'contacts') renderContacts();
 }
 
-function closeFeaturePage() {
-  document.getElementById('recurringPanel').classList.remove('show');
+function closeFeature page() {
   document.getElementById('lookupPanel').classList.remove('show');
   document.getElementById('contactsPanel').classList.remove('show');
 }

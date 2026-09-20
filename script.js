@@ -244,7 +244,7 @@ async function switchToArc() {
         method: 'wallet_addEthereumChain',
         params: [{
           chainId: ARC_CHAIN_HEX,
-          chainName: 'Arc Testnet',
+          chainName: 'Arc Mainnet',
           rpcUrls: [ARC_RPC],
           nativeCurrency: {
             name: 'USDC',

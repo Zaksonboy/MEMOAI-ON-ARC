@@ -153,10 +153,20 @@ window.addEventListener('load', function () {
     pickWallet().then(function (chosenWallet) {
       if (!chosenWallet) return;
 
-      chosenWallet.request({ method: 'eth_accounts' }).then(function (accounts) {
+      chosenWallet.request({ method: 'eth_accounts' }).then(async function (accounts) {
         if (accounts && accounts.length > 0) {
           activeWallet = chosenWallet;
-          setupWallet(accounts[0]);
+          await setupWallet(accounts[0]);
+
+          var chainIdHex = await activeWallet.request({ method: 'eth_chainId' });
+          var chainIdNum = parseInt(chainIdHex, 16);
+
+          if (chainIdNum !== ARC_CHAIN_ID) {
+            showStatus('Switching to Arc Mainnet…', 'info');
+            await switchToArc();
+            provider = new ethers.BrowserProvider(activeWallet);
+            signer = await provider.getSigner();
+          }
         }
       }).catch(function () {
         console.log('Auto-connect skipped');

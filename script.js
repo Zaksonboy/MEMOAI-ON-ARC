@@ -717,15 +717,31 @@ function renderContacts() {
     return;
   }
 
+  function renderContacts() {
+  const list = document.getElementById('contactsList');
+  if (!list) return;
+  const contacts = loadContacts();
+
+  if (!contacts.length) {
+    list.innerHTML = '<div class="history-empty">No saved contacts yet.</div>';
+    return;
+  }
+
   list.innerHTML = contacts.map(c => `
     <div class="contact-item">
-      <div class="c-info">
+      <div class="c-info" onclick="useContact('${c.address}')" style="cursor:pointer;flex:1;">
         <span class="c-name">${c.name}</span>
         <span class="c-addr">${c.address.slice(0, 8)}…${c.address.slice(-6)}</span>
       </div>
       <button onclick="deleteContact('${c.address}')" style="color:#ff5f7e;background:none;border:none;cursor:pointer;">Remove</button>
     </div>
   `).join('');
+}
+
+function useContact(address) {
+  document.getElementById('toAddr').value = address;
+  closeFeaturePage();
+}
 }
 
 function showContactSuggestions() {

@@ -238,6 +238,22 @@ async function connectWallet() {
   }
 }
 
+function toggleNetwork() {
+  CURRENT_NETWORK = CURRENT_NETWORK === 'mainnet' ? 'testnet' : 'mainnet';
+  var net = ARC_NETWORKS[CURRENT_NETWORK];
+
+  ARC_CHAIN_ID = net.chainId;
+  ARC_CHAIN_HEX = net.chainHex;
+  ARC_RPC = net.rpc;
+  ARC_EXPLORER = net.explorer;
+
+  document.getElementById('netLabel').textContent = net.label;
+  showStatus('Switched to ' + net.label + ' in app — now switch your wallet.', 'info');
+
+  if (activeWallet) {
+    switchToArc();
+  }
+}
 
 // ============================================
 // PART 6: Switch to (or add) Arc Testnet

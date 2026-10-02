@@ -269,8 +269,8 @@ async function switchToArc() {
       await activeWallet.request({
         method: 'wallet_addEthereumChain',
         params: [{
-          chainId: ARC_CHAIN_HEX,
-          chainName: 'Arc Mainnet',
+                    chainId: ARC_CHAIN_HEX,
+          chainName: ARC_NETWORKS[CURRENT_NETWORK].label,
           rpcUrls: [ARC_RPC],
           nativeCurrency: {
             name: 'USDC',

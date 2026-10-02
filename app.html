@@ -132,11 +132,30 @@
   </div>
 </div>
   <script>
-  const ARC_CHAIN_ID = 5042;
-  const ARC_CHAIN_HEX = '0x13B2';
-  const ARC_RPC = 'https://rpc.mainnet.arc.io';
-  const ARC_EXPLORER = 'https://explorer.arc.io';
-</script>
+  const ARC_NETWORKS = {
+    mainnet: {
+      chainId: 5042,
+      chainHex: '0x13B2',
+      rpc: 'https://rpc.mainnet.arc.io',
+      explorer: 'https://explorer.arc.io',
+      label: 'Arc Mainnet',
+    },
+    testnet: {
+      chainId: 5042002,
+      chainHex: '0x4CEF52',
+      rpc: 'https://rpc.testnet.arc.network',
+      explorer: 'https://testnet.arcscan.app',
+      label: 'Arc Testnet',
+    },
+  };
+
+  var CURRENT_NETWORK = 'mainnet';
+  var ARC_CHAIN_ID = ARC_NETWORKS[CURRENT_NETWORK].chainId;
+  var ARC_CHAIN_HEX = ARC_NETWORKS[CURRENT_NETWORK].chainHex;
+  var ARC_RPC = ARC_NETWORKS[CURRENT_NETWORK].rpc;
+  var ARC_EXPLORER = ARC_NETWORKS[CURRENT_NETWORK].explorer;
+  </script>
+  
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
 <script src="script.js"></script>
 </body>

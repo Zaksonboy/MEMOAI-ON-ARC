@@ -884,3 +884,12 @@ textarea#memo {
   font-weight: 600;
   color: var(--text);
 }
+#status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 520px;
+  z-index: 200;
+}

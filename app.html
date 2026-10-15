@@ -149,7 +149,7 @@
     },
   };
 
-  var CURRENT_NETWORK = 'mainnet';
+  var CURRENT_NETWORK = localStorage.getItem('memoai_network') || 'mainnet';
   var ARC_CHAIN_ID = ARC_NETWORKS[CURRENT_NETWORK].chainId;
   var ARC_CHAIN_HEX = ARC_NETWORKS[CURRENT_NETWORK].chainHex;
   var ARC_RPC = ARC_NETWORKS[CURRENT_NETWORK].rpc;

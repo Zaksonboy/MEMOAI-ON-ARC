@@ -2,7 +2,7 @@
 // momoAI - USDC Payments on Arc Testnet
 // ============================================
 
-var STORAGE_KEY = 'momoAI_history';
+var STORAGE_KEY = 'memoAI_history';
 
 // These are expected to already exist from your HTML file:
 // ARC_CHAIN_ID, ARC_CHAIN_HEX, ARC_RPC, ARC_EXPLORER
@@ -377,7 +377,7 @@ function estimateGasForMemo(memoHex) {
 // ============================================
 function getNextInvoiceRef() {
   var year = new Date().getFullYear();
-  var key = 'momoai_invoice_counter_' + year;
+  var key = 'memoai_invoice_counter_' + year;
   var count = parseInt(localStorage.getItem(key) || '0', 10) + 1;
   localStorage.setItem(key, String(count));
   var padded = String(count).padStart(4, '0');
@@ -393,7 +393,11 @@ async function sendPayment() {
     showStatus('Connect your wallet first.', 'err');
     return;
   }
-
+  var walletChain = parseInt(await activeWallet.request({ method: 'eth_chainId' }), 16);
+  if (walletChain !== ARC_CHAIN_ID) {
+    showStatus('Wrong network. Switch your wallet to ' + ARC_NETWORKS[CURRENT_NETWORK].label + ' first.', 'err');
+    return;
+  }
   var to = document.getElementById('toAddr').value.trim();
   var amountStr = document.getElementById('amount').value.trim();
   var memo = document.getElementById('memo').value.trim();

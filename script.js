@@ -1,5 +1,5 @@
 // ============================================
-// momoAI - USDC Payments on Arc Testnet
+// memoAI - USDC Payments on Arc Testnet
 // ============================================
 
 var STORAGE_KEY = 'memoAI_history';

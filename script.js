@@ -265,24 +265,21 @@ async function switchToArc() {
       params: [{ chainId: ARC_CHAIN_HEX }],
     });
   } catch (e) {
-    if (e.code === 4902) {
-      await activeWallet.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-                    chainId: ARC_CHAIN_HEX,
-          chainName: ARC_NETWORKS[CURRENT_NETWORK].label,
-          rpcUrls: [ARC_RPC],
-          nativeCurrency: {
-            name: 'USDC',
-            symbol: 'USDC',
-            decimals: 18,
-          },
-          blockExplorerUrls: [ARC_EXPLORER],
-        }],
-      });
-    } else {
-      throw e;
+    if (e.code === 4001) throw e;
+    if (e.code === -32002) {
+      showStatus('A request is already pending in your wallet. Open it and approve.', 'info');
+      return;
     }
+    await activeWallet.request({
+      method: 'wallet_addEthereumChain',
+      params: [{
+        chainId: ARC_CHAIN_HEX,
+        chainName: ARC_NETWORKS[CURRENT_NETWORK].label,
+        rpcUrls: [ARC_RPC],
+        nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+        blockExplorerUrls: [ARC_EXPLORER],
+      }],
+    });
   }
 }
 

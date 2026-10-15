@@ -1,11 +1,23 @@
 // ============================================
-// memoAI - USDC Payments on Arc Testnet
+// memoAI - USDC Payments on Arc
 // ============================================
 
+// One-time migration: move data saved under the old "momoAI" keys to the new "memoAI" keys
+(function migrateStorage() {
+  [['momoAI_history', 'memoAI_history'], ['momoAI_contacts', 'memoAI_contacts']].forEach(function (p) {
+    var old = localStorage.getItem(p[0]);
+    if (old !== null && localStorage.getItem(p[1]) === null) {
+      localStorage.setItem(p[1], old);
+      localStorage.removeItem(p[0]);
+    }
+  });
+})();
+
 var STORAGE_KEY = 'memoAI_history';
+var CONTACTS_KEY = 'memoAI_contacts';
 
 // These are expected to already exist from your HTML file:
-// ARC_CHAIN_ID, ARC_CHAIN_HEX, ARC_RPC, ARC_EXPLORER
+// ARC_NETWORKS, CURRENT_NETWORK, ARC_CHAIN_ID, ARC_CHAIN_HEX, ARC_RPC, ARC_EXPLORER
 
 // App state - things we need to remember while the page is open
 var provider = null;       // talks to the blockchain
@@ -51,6 +63,19 @@ var MEMO_ABI = [
 var ERC20_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)"
 ];
+
+
+// ============================================
+// Helper: make text safe to show inside HTML
+// ============================================
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 
 // ============================================
@@ -162,7 +187,7 @@ window.addEventListener('load', function () {
           var chainIdNum = parseInt(chainIdHex, 16);
 
           if (chainIdNum !== ARC_CHAIN_ID) {
-            showStatus('Switching to Arc Mainnet…', 'info');
+            showStatus('Switching to ' + ARC_NETWORKS[CURRENT_NETWORK].label + '…', 'info');
             await switchToArc();
             provider = new ethers.BrowserProvider(activeWallet);
             signer = await provider.getSigner();
@@ -221,13 +246,13 @@ async function connectWallet() {
     var chainIdNum = parseInt(chainIdHex, 16);
 
     if (chainIdNum !== ARC_CHAIN_ID) {
-      showStatus('Switching to Arc Testnet…', 'info');
+      showStatus('Switching to ' + ARC_NETWORKS[CURRENT_NETWORK].label + '…', 'info');
       await switchToArc();
       provider = new ethers.BrowserProvider(activeWallet);
       signer = await provider.getSigner();
     }
 
-    showStatus('Connected to Arc Testnet ✓', 'ok');
+    showStatus('Connected to ' + ARC_NETWORKS[CURRENT_NETWORK].label + ' ✓', 'ok');
 
   } catch (e) {
     if (e.code === 4001) {
@@ -238,6 +263,10 @@ async function connectWallet() {
   }
 }
 
+
+// ============================================
+// Network toggle (Mainnet <-> Testnet)
+// ============================================
 async function toggleNetwork() {
   CURRENT_NETWORK = CURRENT_NETWORK === 'mainnet' ? 'testnet' : 'mainnet';
   localStorage.setItem('memoai_network', CURRENT_NETWORK);
@@ -258,8 +287,9 @@ async function toggleNetwork() {
   }
 }
 
+
 // ============================================
-// PART 6: Switch to (or add) Arc Testnet
+// PART 6: Switch to (or add) the selected Arc network
 // ============================================
 async function switchToArc() {
   try {
@@ -381,7 +411,7 @@ function getNextInvoiceRef() {
   var count = parseInt(localStorage.getItem(key) || '0', 10) + 1;
   localStorage.setItem(key, String(count));
   var padded = String(count).padStart(4, '0');
-  return 'momoai-' + year + '-' + padded;
+  return 'memoai-' + year + '-' + padded;
 }
 
 
@@ -393,11 +423,14 @@ async function sendPayment() {
     showStatus('Connect your wallet first.', 'err');
     return;
   }
+
+  // Safety check: the app and the wallet must be on the same network
   var walletChain = parseInt(await activeWallet.request({ method: 'eth_chainId' }), 16);
   if (walletChain !== ARC_CHAIN_ID) {
     showStatus('Wrong network. Switch your wallet to ' + ARC_NETWORKS[CURRENT_NETWORK].label + ' first.', 'err');
     return;
   }
+
   var to = document.getElementById('toAddr').value.trim();
   var amountStr = document.getElementById('amount').value.trim();
   var memo = document.getElementById('memo').value.trim();
@@ -550,8 +583,8 @@ function renderHistory() {
         '<span class="tx-addr">' + tx.to.slice(0, 8) + '…' + tx.to.slice(-6) + '</span>' +
         '<span class="tx-amount">' + parseFloat(tx.amount).toLocaleString() + ' USDC</span>' +
       '</div>' +
-      (tx.memo ? '<div class="tx-memo">' + tx.memo + '</div>' : '') +
-      (tx.ref ? '<div class="tx-ref">Invoice: ' + tx.ref + '</div>' : '') +
+      (tx.memo ? '<div class="tx-memo">' + escapeHtml(tx.memo) + '</div>' : '') +
+      (tx.ref ? '<div class="tx-ref">Invoice: ' + escapeHtml(tx.ref) + '</div>' : '') +
       '<div class="tx-meta">' +
         '<span class="tx-time">' + new Date(tx.time).toLocaleString() + '</span>' +
         '<a class="tx-hash" href="' + ARC_EXPLORER + '/tx/' + tx.hash + '" target="_blank">' + tx.hash.slice(0, 10) + '…</a>' +
@@ -600,10 +633,11 @@ function listenForWalletChanges() {
   activeWallet.on('chainChanged', function () {
     location.reload();
   });
-    }
+}
+
 
 // ============================================
-// PART 15: Tabs
+// PART 15: Tabs and pages
 // ============================================
 function switchTab(tab) {
   document.getElementById('historyPanel').classList.toggle('active', tab === 'history');
@@ -625,6 +659,7 @@ function closeFeaturePage() {
   document.getElementById('contactsPanel').classList.remove('show');
 }
 
+
 // ============================================
 // PART 16: Look up a payment by invoice ref
 // ============================================
@@ -645,7 +680,8 @@ async function lookupPayment() {
     var memoInterface = new ethers.Interface(MEMO_ABI);
     var memoTopic = memoInterface.getEvent('Memo').topicHash;
 
-          var latestBlock = await readProvider.getBlockNumber();
+    // Arc's public RPC limits eth_getLogs to 10,000 blocks per query
+    var latestBlock = await readProvider.getBlockNumber();
     var fromBlock = Math.max(0, latestBlock - 9500);
 
     var logs = await readProvider.getLogs({
@@ -675,29 +711,32 @@ async function lookupPayment() {
           '<span class="tx-addr">' + args.sender.slice(0, 8) + '…' + args.sender.slice(-6) + '</span>' +
           '<span class="tx-amount">Verified ✓</span>' +
         '</div>' +
-        '<div class="tx-memo">' + memoText.replace(/\n/g, '<br>') + '</div>' +
+        '<div class="tx-memo">' + escapeHtml(memoText).replace(/\n/g, '<br>') + '</div>' +
         '<div class="tx-meta">' +
-          '<span class="tx-time">Ref: ' + ref + '</span>' +
+          '<span class="tx-time">Ref: ' + escapeHtml(ref) + '</span>' +
           '<a class="tx-hash" href="' + ARC_EXPLORER + '/tx/' + logs[0].transactionHash + '" target="_blank">' + logs[0].transactionHash.slice(0, 10) + '…</a>' +
         '</div>' +
       '</div>';
   } catch (e) {
-    resultBox.innerHTML = '<div class="history-empty">Search failed: ' + (e.message || e) + '</div>';
+    resultBox.innerHTML = '<div class="history-empty">Search failed: ' + escapeHtml(e.message || e) + '</div>';
   }
 }
-const CONTACTS_KEY = 'momoAI_contacts';
 
+
+// ============================================
+// PART 17: Contacts (saved on this device only)
+// ============================================
 function loadContacts() {
   try {
     return JSON.parse(localStorage.getItem(CONTACTS_KEY)) || [];
-  } catch {
+  } catch (e) {
     return [];
   }
 }
 
 function saveContact() {
-  const address = document.getElementById('toAddr').value.trim();
-  const name = document.getElementById('saveContactName').value.trim();
+  var address = document.getElementById('toAddr').value.trim();
+  var name = document.getElementById('saveContactName').value.trim();
 
   if (!ethers.isAddress(address)) {
     showStatus('Enter a valid address before saving.', 'err');
@@ -708,12 +747,14 @@ function saveContact() {
     return;
   }
 
-  const contacts = loadContacts();
-  const existing = contacts.findIndex(c => c.address.toLowerCase() === address.toLowerCase());
+  var contacts = loadContacts();
+  var existing = contacts.findIndex(function (c) {
+    return c.address.toLowerCase() === address.toLowerCase();
+  });
   if (existing >= 0) {
     contacts[existing].name = name;
   } else {
-    contacts.push({ name, address });
+    contacts.push({ name: name, address: address });
   }
   localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
   document.getElementById('saveContactName').value = '';
@@ -722,75 +763,68 @@ function saveContact() {
 
 function deleteContact(address) {
   if (!confirm('Remove this saved contact?')) return;
-  const contacts = loadContacts().filter(c => c.address.toLowerCase() !== address.toLowerCase());
+  var contacts = loadContacts().filter(function (c) {
+    return c.address.toLowerCase() !== address.toLowerCase();
+  });
   localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
   renderContacts();
 }
 
 function renderContacts() {
-  const list = document.getElementById('contactsList');
+  var list = document.getElementById('contactsList');
   if (!list) return;
-  const contacts = loadContacts();
+  var contacts = loadContacts();
 
   if (!contacts.length) {
     list.innerHTML = '<div class="history-empty">No saved contacts yet.</div>';
     return;
   }
 
-  function renderContacts() {
-  const list = document.getElementById('contactsList');
-  if (!list) return;
-  const contacts = loadContacts();
-
-  if (!contacts.length) {
-    list.innerHTML = '<div class="history-empty">No saved contacts yet.</div>';
-    return;
-  }
-
-  list.innerHTML = contacts.map(c => `
-    <div class="contact-item">
-      <div class="c-info" onclick="useContact('${c.address}')" style="cursor:pointer;flex:1;">
-        <span class="c-name">${c.name}</span>
-        <span class="c-addr">${c.address.slice(0, 8)}…${c.address.slice(-6)}</span>
-      </div>
-      <button onclick="deleteContact('${c.address}')" style="color:#ff5f7e;background:none;border:none;cursor:pointer;">Remove</button>
-    </div>
-  `).join('');
+  list.innerHTML = contacts.map(function (c) {
+    return '<div class="contact-item">' +
+      '<div class="c-info" onclick="useContact(\'' + c.address + '\')" style="cursor:pointer;flex:1;">' +
+        '<span class="c-name">' + escapeHtml(c.name) + '</span>' +
+        '<span class="c-addr">' + c.address.slice(0, 8) + '…' + c.address.slice(-6) + '</span>' +
+      '</div>' +
+      '<button onclick="deleteContact(\'' + c.address + '\')" style="color:#ff5f7e;background:none;border:none;cursor:pointer;">Remove</button>' +
+    '</div>';
+  }).join('');
 }
 
 function useContact(address) {
   document.getElementById('toAddr').value = address;
   closeFeaturePage();
 }
-}
 
 function showContactSuggestions() {
-  const input = document.getElementById('toAddr');
-  const dropdown = document.getElementById('contactDropdown');
-  const query = input.value.trim().toLowerCase();
+  var input = document.getElementById('toAddr');
+  var dropdown = document.getElementById('contactDropdown');
+  var query = input.value.trim().toLowerCase();
 
-  if (!query || query.startsWith('0x')) {
+  if (!query || query.indexOf('0x') === 0) {
     dropdown.classList.remove('show');
     return;
   }
 
-  const contacts = loadContacts().filter(c => c.name.toLowerCase().includes(query));
+  var contacts = loadContacts().filter(function (c) {
+    return c.name.toLowerCase().indexOf(query) !== -1;
+  });
 
   if (!contacts.length) {
     dropdown.classList.remove('show');
     return;
   }
 
-  dropdown.innerHTML = contacts.map(c => `
-    <div class="contact-option" onclick="pickContact('${c.address}', '${c.name.replace(/'/g, "\\'")}')">
-      <div class="c-name">${c.name}</div>
-      <div class="c-addr">${c.address}</div>
-    </div>
-  `).join('');
+  dropdown.innerHTML = contacts.map(function (c) {
+    return '<div class="contact-option" onclick="pickContact(\'' + c.address + '\')">' +
+      '<div class="c-name">' + escapeHtml(c.name) + '</div>' +
+      '<div class="c-addr">' + c.address + '</div>' +
+    '</div>';
+  }).join('');
   dropdown.classList.add('show');
 }
 
-function pickContact(address, name) {
+function pickContact(address) {
   document.getElementById('toAddr').value = address;
   document.getElementById('contactDropdown').classList.remove('show');
-}
+      }  

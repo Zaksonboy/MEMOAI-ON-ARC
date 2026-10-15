@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>memoAI — USDC Payment Assistant</title>
 <link rel="stylesheet" href="style.css" />
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
+<meta property="og:image" content="https://memoarc.xyz/logo.png">
 </head>
 <body>
 
 <header>
-  <link rel="icon" type="image/png" href="/logo.png">
-<link rel="apple-touch-icon" href="/logo.png">
-<meta property="og:image" content="https://memoarc.xyz/logo.png">
   <a href="/" style="display:contents;text-decoration:none;">
-    <img src="images/momoai-logo-512.png" class="logo-mark" alt="momoAI">
+    <img src="images/momoai-logo-512.png" class="logo-mark" alt="memoAI">
   </a>
   <div class="logo-text">
-    <span class="logo-name">memoAI <span class="net-badge" id="netBadge" onclick="toggleNetwork()" style="cursor:pointer;"><span class="net-dot"></span><span id="netLabel">Arc Mainnet</span></span>
+    <span class="logo-name">memoAI <span class="net-badge" id="netBadge" onclick="toggleNetwork()" style="cursor:pointer;" title="Tap to switch network"><span class="net-dot"></span><span id="netLabel">Arc Mainnet</span></span></span>
     <span class="logo-sub">USDC Payment Assistant</span>
   </div>
   <button class="wallet-pill" id="walletBtn" onclick="connectWallet()">Connect Wallet</button>
@@ -26,7 +26,7 @@
   <div class="menu-overlay-header">
     <button class="menu-close-btn" onclick="toggleMenu()">✕</button>
   </div>
-  <div class="menu-page-option" onclick="goToPage('history')">Payment History</div>
+  <div class="menu-page-option" onclick="toggleMenu(); document.getElementById('historyPanel').scrollIntoView({behavior:'smooth'});">Payment History</div>
   <div class="menu-page-option" onclick="goToPage('lookup')">Look Up</div>
   <div class="menu-page-option" onclick="goToPage('contacts')">Contacts</div>
 </div>
@@ -91,7 +91,8 @@
     </div>
   </div>
 </div>
-  <div class="features-showcase">
+
+<div class="features-showcase">
   <div class="features-showcase-label">Explore Features</div>
   <div class="features-grid">
     <div class="feature-tile" onclick="goToPage('lookup')">
@@ -103,7 +104,7 @@
       <div class="feature-tile-label">Contacts</div>
     </div>
   </div>
-  </div>
+</div>
 
 <div class="feature-page" id="lookupPanel">
   <div class="feature-page-header">
@@ -131,7 +132,8 @@
     <div id="contactsList"></div>
   </div>
 </div>
-  <script>
+
+<script>
   const ARC_NETWORKS = {
     mainnet: {
       chainId: 5042,
@@ -150,13 +152,15 @@
   };
 
   var CURRENT_NETWORK = localStorage.getItem('memoai_network') || 'mainnet';
+  if (!ARC_NETWORKS[CURRENT_NETWORK]) CURRENT_NETWORK = 'mainnet';
+
   var ARC_CHAIN_ID = ARC_NETWORKS[CURRENT_NETWORK].chainId;
   var ARC_CHAIN_HEX = ARC_NETWORKS[CURRENT_NETWORK].chainHex;
   var ARC_RPC = ARC_NETWORKS[CURRENT_NETWORK].rpc;
   var ARC_EXPLORER = ARC_NETWORKS[CURRENT_NETWORK].explorer;
-    document.getElementById('netLabel').textContent = ARC_NETWORKS[CURRENT_NETWORK].label;
-  </script>
-  
+
+  document.getElementById('netLabel').textContent = ARC_NETWORKS[CURRENT_NETWORK].label;
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
 <script src="script.js"></script>
 </body>

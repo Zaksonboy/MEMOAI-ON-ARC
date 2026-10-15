@@ -238,20 +238,23 @@ async function connectWallet() {
   }
 }
 
-function toggleNetwork() {
+async function toggleNetwork() {
   CURRENT_NETWORK = CURRENT_NETWORK === 'mainnet' ? 'testnet' : 'mainnet';
+  localStorage.setItem('memoai_network', CURRENT_NETWORK);
   var net = ARC_NETWORKS[CURRENT_NETWORK];
 
   ARC_CHAIN_ID = net.chainId;
   ARC_CHAIN_HEX = net.chainHex;
   ARC_RPC = net.rpc;
   ARC_EXPLORER = net.explorer;
-
   document.getElementById('netLabel').textContent = net.label;
-  showStatus('Switched to ' + net.label + ' in app — now switch your wallet.', 'info');
 
   if (activeWallet) {
-    switchToArc();
+    try {
+      await switchToArc();
+    } catch (e) {
+      if (e.code !== 4001) showStatus('Could not switch network: ' + (e.message || e), 'err');
+    }
   }
 }
 
